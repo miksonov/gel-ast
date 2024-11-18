@@ -1,0 +1,771 @@
+// Protocol Buffers definitions specified here model nodes of Abstract Syntax Trees (AST)
+// representing GEL expressions.
+// These definitions are used by GEL expression parser, interpeter, and code generators.
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+package org.wanderlinks.gel.v1;
+
+option cc_enable_arenas = true;
+option go_package = "wanderlinks.org/gel/expr";
+option java_multiple_files = true;
+option java_package = "org.wanderlinks.gel.v1";
+
+// TypeDef models a GEL type definition.
+message TypeDef {
+  // PrimitiveType enumerates supported primitive (built-in non-composite) data types.
+  enum PrimitiveType {
+    // Special value that indicates that an enum field is not initialized.
+    PRIMITIVE_TYPE_UNSPECIFIED = 0;
+
+    // Boolean values.
+    PRIMITIVE_TYPE_BOOL = 1;
+
+    // Sequence of bytes.
+    PRIMITIVE_TYPE_BYTES = 2;
+
+    // Real numeric values.
+    PRIMITIVE_TYPE_REAL = 3;
+
+    // Integer numeric values.
+    PRIMITIVE_TYPE_INT = 4;
+
+    // Strings.
+    PRIMITIVE_TYPE_STRING = 5;
+  }
+
+  // FieldDef models a definition of a field of a struct or union.
+  message FieldDef {
+    // Field name.
+    // @Required
+    string name = 1;
+
+    // Type definition for the field value.
+    // @Required
+    TypeDef type = 2;
+
+    // Specifies if the field value is not required.
+    // @Optional
+    bool optional = 3;
+
+    // Specifies when the field will become (or had became) available.
+    // @Optional
+    string available_since_version = 4;
+
+    // Specifies when the field will become (or had became) deprecated.
+    // @Optional
+    string deprecated_since_version = 5;
+  }
+
+  // StructTypeDef models a definition of a struct type.
+  // A struct is an aggregate of one or more named values called fields.
+  // Fields of a struct are accessed using . notation.
+  // Note: Field values are optional, hence a struct can have 
+  // non-initalized fields.
+  message StructTypeDef {
+    // Field definitions by field names.
+    // @Required
+    // @Constraints: $.keys.all(isNotEmpty)  => field name is not initialized
+    // @Constraints: $.values.all(isPresent) => missing field definition
+    map<string, FieldDef> field_def_by_name = 1;
+  }
+
+  // UnionTypeDef models a definition of a union type.
+  // A union is an collection of one or more named values called fields,
+  // where no more than one field can be initialized at the same time. 
+  // Fields of a union are accessed using . notation.
+  message UnionTypeDef {
+    // Field definitions by field names.
+    // @Required
+    // @Constraints: $.keys.all(isNotEmpty)  : field name is not set
+    // @Constraints: $.values.all(isPresent) : missing field definition
+    map<string, FieldDef> field_def_by_name = 1;
+  }
+
+  // EnumTypeDef models an enum type definition.
+  message EnumTypeDef {
+    // EnumValueDef models a definition of enum value.
+    message EnumValueDef {
+      // Enum name (value).
+      // @Required
+      string name = 1;
+
+      // Specifies when the enum value will become (or had became) available.
+      // @Optional
+      google.protobuf.Timestamp available_since = 2;
+
+      // Specifies when the enum value will become (or had became) deprecated.
+      // @Optional
+      google.protobuf.Timestamp deprecated_since = 3;
+    }
+
+    // Enum value definitions by enum values.
+    // @Required
+    // @Constraints: $.keys.all(isNotEmpty)  => enum name is not set
+    // @Constraints: $.values.all(isPresent) => missing enum definition
+    map<string, EnumValueDef> enum_value_by_name = 1;
+  }
+
+  // ListTypeDef models a list type definition for either typed or generic
+  // list.
+  // A list is an ordered sequence of elements. Lists could be empty.
+  // Elements of a list could be accessed by their indices using [] operator.
+  message ListTypeDef {
+    // Type definition of list elements.
+    // If this field is not set, then this ListTypeDef defines a generic list type.
+    // @Optional
+    TypeDef element_type = 1;
+  }
+
+  // SetTypeDef models a set type definition.
+  // A set is a collection (potentially empty) of unique elements.
+  message SetTypeDef {
+    // Type definition of set elements.
+    // If this field is not set, then this SetTypeDef defines a generic set type.
+    // @Optional
+    TypeDef element_type = 1;
+  }
+
+  // MapTypeDef models a map type definition.
+  // A map is a dictionary which values are accessed by corresponding keys.
+  message MapTypeDef {
+    // Type definition of map keys.
+    // If this field is not set, then this MapTypeDef defines a generic map type.
+    // @Optional
+    TypeDef key_type = 1;
+
+    // Type definition of map values.
+    // If this field is not set, then this MapTypeDef defines a generic map type.
+    // @Optional
+    TypeDef value_type = 2;
+  }
+
+  // IntRangeTypeDef models an integer range type definiton
+  // An integer range is a sorted collection of contiguous integer values constrained by
+  // lower and upper bounds.
+  message IntRangeTypeDef {}
+
+  // Name of the type.
+  // @Required
+  string name = 1;
+
+  // Mutually exclusive fields.
+  // @Required
+  oneof kind {
+    // Primitive type.
+    // @Optional
+    PrimitiveType primitive_type = 2;
+
+    // List type.
+    // @Optional
+    ListTypeDef list_type = 3;
+
+    // Set type.
+    // @Optional
+    SetTypeDef set_type = 4;
+
+    // Map type.
+    // @Optional
+    MapTypeDef map_type = 5;
+
+    // Struct type.
+    // @Optional
+    StructTypeDef struct_type = 6;
+
+    // Union type.
+    // @Optional
+    UnionTypeDef union_type = 7;
+
+    // Enum type.
+    // @Optional
+    EnumTypeDef enum_type = 8;
+
+    // Integer range type.
+    // @Optional
+    IntRangeTypeDef int_range_type = 9;
+  }
+}
+
+// Expr models a node of the Abstract Syntax Tree (AST) representing a GEL expression.
+message Expr {
+  // IntLiteral models an int literal.
+  message IntLiteral {
+    // @Optional
+    int64 value = 1;
+  }
+
+  // RealLiteral models a real numbeer literal.
+  message RealLiteral {
+    // @Optional
+    double value = 1;
+  }
+
+  // StringLiteral models a string literal.
+  message StringLiteral {
+    // @Optional
+    string value = 1;
+  }
+
+  // BooleanLiteral models a boolean literal.
+  message BooleanLiteral {
+    // @Optional
+    bool value = 1;
+  }
+
+  // EnumLiteral models an enum literal.
+  message EnumLiteral {
+    // @Required
+    string name = 1;
+  }
+
+  // IntRangeExpr models an open or closed contiguous range of integer values.
+  message IntRangeExpr {
+    // Indicates if the range is open (true) or closed (false).
+    // A range is called an *open range* when the upper boundary is NOT INCLUDED
+    // in the range.
+    // A range is called a *closed range* when the upper boundary is INCLUDED
+    // in the range.
+    bool open_range = 1;
+
+    // Lower boundary of the range.
+    // @Required
+    // @Constraints: $.type.primitive_type == PRIMITIVE_TYPE_INT
+    Expr lower_bound = 2;
+
+    // Upper boundary of the range.
+    // @Required
+    // @Constraints: $.type.primitive_type == PRIMITIVE_TYPE_INT
+    Expr upper_bound = 3;
+  }
+
+  // SetExpr models a set of values of the same type.
+  message SetExpr {
+    // Elements of the set.
+    // @Optional
+    // @Constraints: $.map($1.type).unique().size() == 1
+    //              : all elements of a set must have the same type
+    repeated Expr values = 1;
+  }
+
+  // UnaryOpExpr models an unary operation expression (op A).
+  // The following operations must be supported:
+  //
+  // Operator "-"
+  // Applies to operands of the following types:
+  // - int   -> int
+  // - real  -> real
+  //
+  // Operator "not" or "!"
+  // Applies to operands of the following types:
+  // - bool   -> bool
+  message UnaryOpExpr {
+    // Operator symbol.
+    // @Required
+    string op = 1;
+
+    // Operand.
+    // @Required
+    Expr rhs = 2;
+  }
+
+  // BinaryOpExpr models a binary operation expression (A op B).
+  // All binary operations do not mutate the operands.
+  //
+  // The following operations must be supported:
+  //
+  // Addition Operation: {LHS} + {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | string   | string   | string      | String concatenation        |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | int      | int         | Sum of two integer values   |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | real     | real        | Sum of two numeric values   |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | int      | real        | Sum of two numeric values   |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | real     | real        | Sum of two real values      |
+  // +----------+----------+-------------+-----------------------------+
+  // | set<T>   | T        | set<T>      | New set that contains all   |
+  // |          |          |             | elements from the LHS and   |
+  // |          |          |             | RHS element.                |
+  // |          |          |             | If the LHS set already      |
+  // |          |          |             | has RHS, the result is      |
+  // |          |          |             | LHS set.                    |
+  // +----------+----------+-------------+-----------------------------+
+  // | T        | set<T>   | set<T>      | New set that contains all   |
+  // |          |          |             | elements from the RHS and   |
+  // |          |          |             | LHS element.                |
+  // |          |          |             | If the RHS set already      |
+  // |          |          |             | has LHS, the result is      |
+  // |          |          |             | RHS set.                    |
+  // +----------+----------+-------------+-----------------------------+
+  // | set<T>   | set<T>   | set<T>      | Union of two sets.          |
+  // +----------+----------+-------------+-----------------------------+
+  // | list<T>  | T        | list<T>     | New list that is created    |
+  // |          |          |             | from LHS by appending RHS   |
+  // |          |          |             | to the end of the list.     |
+  // +----------+----------+-------------+-----------------------------+
+  // | T        | list<T>  | list<T>     | New list that is created    |
+  // |          |          |             | from RHS by inserting LHS   |
+  // |          |          |             | as the first element.       |
+  // +----------+----------+-------------+-----------------------------+
+  // | list<T>  | list<T>  | list<T>     | Concatenation of two        |
+  // |          |          |             | lists.                      |
+  // +==========+==========+=============+=============================+
+  //
+  // Subtraction Operation: {LHS} - {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | int      | int      | int         | Difference between two      |
+  // |          |          |             | integer values.             | 
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | real     | real        | Difference between two      |
+  // |          |          |             | numeric values.             | 
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | int      | real        | Difference between two      |
+  // |          |          |             | numeric values.             | 
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | real     | real        | Difference between two      |
+  // |          |          |             | real values.                | 
+  // +----------+----------+-------------+-----------------------------+
+  // | set<T>   | T        | set<T>      | New set that is created     |
+  // |          |          |             | by removing RHS from LHS.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | T        | set<T>   | set<T>      | New set that is created     |
+  // |          |          |             | by removing LHS from RHS.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | set<T>   | set<T>   | set<T>      | New set that is created     |
+  // |          |          |             | by removing RHS elements    |
+  // |          |          |             | LHS elements.               |
+  // +----------+----------+-------------+-----------------------------+
+  // | list<T>  | T        | list<T>     | New list that is created    |
+  // |          |          |             | by removing RHS element     |
+  // |          |          |             | from LHS list.              |
+  // +==========+==========+=============+=============================+
+  //
+  // Division Operation: {LHS} / {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | int      | int      | int         | Quotient of the divison     |
+  // |          |          |             | of LHS by RHS integer       |
+  // |          |          |             | values.                     |  
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | real     | real        | Difference between two      |
+  // |          |          |             | numeric values.             | 
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | int      | real        | Difference between two      |
+  // |          |          |             | numeric values.             | 
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | real     | real        | Difference between two      |
+  // |          |          |             | real values.                | 
+  // +==========+==========+=============+=============================+
+  //
+  // Multiplication Operation: {LHS} * {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | int      | int      | int         | Product of LHS and RHS.     |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | real     | real        | Product of LHS and RHS.     |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | int      | real        | Product of LHS and RHS.     |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | real     | real        | Product of LHS and RHS.     |
+  // +==========+==========+=============+=============================+
+  //
+  // Remainder (Modulus) Operation: {LHS} % {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | int      | int      | int         | Reminder of the division    |
+  // |          |          |             | of LHS by RHS integer       |
+  // |          |          |             | values.                     |
+  // |          |          |             | In cases where the LHS is   |
+  // |          |          |             | negative, the result is a   |
+  // |          |          |             | negative remainder.         |  
+  // +==========+==========+=============+=============================+
+  //
+  // Equality Operation: {LHS} "==" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | string   | string   | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | strings are exactly the     |
+  // |          |          |             | same and FALSE otherwise.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | int      | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | integers are exactly the    |
+  // |          |          |             | same and FALSE otherwise.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | real     | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | real numbers are exactly the|
+  // |          |          |             | same and FALSE otherwise.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | bytes    | bytes    | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | byte strings are exactly the|
+  // |          |          |             | same and FALSE otherwise.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | set<T>   | set<T>   | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | sets are exactly the        |
+  // |          |          |             | same and FALSE otherwise.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | list<T>  | list<T>  | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | lists are exactly the       |
+  // |          |          |             | same and FALSE otherwise.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | struct   | struct   | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | structs are exactly the     |
+  // |          |          |             | same and FALSE otherwise.   |
+  // +==========+==========+=============+=============================+
+  //
+  // Non-Equality Operation: {LHS} "!=" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | string   | string   | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | strings are exactly the     |
+  // |          |          |             | same and TRUE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | int      | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | integers are exactly the    |
+  // |          |          |             | same and TRUE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | real     | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | real numbers are exactly the|
+  // |          |          |             | same and TRUE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | bytes    | bytes    | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | byte strings are exactly the|
+  // |          |          |             | same and TRUE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | set<T>   | set<T>   | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | sets are exactly the        |
+  // |          |          |             | same and TRUE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | list<T>  | list<T>  | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | lists are exactly the       |
+  // |          |          |             | same and TRUE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | struct   | struct   | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | structs are exactly the     |
+  // |          |          |             | same and TRUE otherwise.    |
+  // +==========+==========+=============+=============================+
+  //
+  // Case-Insenitive String Equality Operation: {LHS} "~=" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | string   | string   | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | strings are equal ignoring  |
+  // |          |          |             | case differences and        |
+  // |          |          |             | FALSE otherwise.            |
+  // +==========+==========+=============+=============================+
+  //
+  // Operator "<"
+  // Applies to operands of the following types:
+  // - string, string -> bool
+  // - int, int       -> bool
+  // - int, real      -> bool
+  // - real, int      -> bool
+  // - real, real     -> bool
+  // - set<T>, set<T> -> bool
+  //
+  // Operator "<="
+  // Applies to operands of the following types:
+  // - string, string -> bool
+  // - int, int       -> bool
+  // - real, real     -> bool
+  // - set<T>, set<T> -> bool
+  //
+  // Operator ">"
+  // Applies to operands of the following types:
+  // - string, string -> bool
+  // - int, int       -> bool
+  // - int, real      -> bool
+  // - real, int      -> bool
+  // - real, real     -> bool
+  // - set<T>, set<T> -> bool
+  //
+  // Operator ">="
+  // Applies to operands of the following types:
+  // - string, string -> bool
+  // - int, int       -> bool
+  // - int, real      -> bool
+  // - real, int      -> bool
+  // - set<T>, set<T> -> bool
+  //
+  // Operator "??"
+  //
+  // Operator "..."
+  // Applies to operands of the following types:
+  // - int, int   -> range
+  //
+  // Operator "..<"
+  // Applies to operands of the following types:
+  // - int, int   -> range
+  //
+  // Operator "in"
+  // Applies to operands of the following types:
+  // - int, set<int>          -> bool
+  // - string, set<string>    -> bool
+  // - int, range             -> bool
+  //
+  // Operator "and" or "&&"
+  // Applies to operands of the following types:
+  // - bool, bool -> bool
+  //
+  // Operator "or" or "||"
+  // Applies to operands of the following types:
+  // - bool, bool -> bool
+  //
+  // Operator "xor" or "^"
+  // Applies to operands of the following types:
+  // - bool, bool -> bool
+  // - int, int   -> int
+  //
+  // Operator "matches"
+  // Applies to operands of the following types:
+  // - string, string -> bool
+  //
+  // Operator "[]"
+  // Applies to operands of the following types:
+  // - list<T>, int -> T
+  // - map<K,V>, K -> V 
+  message BinaryOpExpr {
+    // Operator symbol.
+    // @Required
+    string op = 1;
+
+    // Left hand side operand.
+    // @Required
+    Expr lhs = 2;
+
+    // Right hand side operand.
+    // @Required
+    Expr rhs = 3;
+  }
+
+  // TernaryOpExpr models a ternary operation (a ? b : c).
+  message TernaryOpExpr {
+    // Predicate which is used to select the result of the operation.
+    // @Required
+    Expr predicate = 1;
+
+    // Result of the operation if the predicate is evaluated to true.
+    // @Required
+    Expr true_expr = 2;
+
+    // Result of the operation if the predicate is evaluated to false.
+    // @Required
+    Expr false_expr = 3;
+  }
+
+  // VarRefExpr models a reference to a variable value.
+  message VarRefExpr {
+    // Variable name.
+    // @Required
+    string name = 1;
+
+    // Variable type.
+    // @Required
+    TypeDef type = 2;
+  }
+
+  // FieldRefExpr models a reference to a struct field.
+  message FieldRefExpr {
+    // Fully qualified name of the struct that contains the field.
+    // The first element must be the name of the top level struct in the parsing context.
+    // @Constraints: not empty
+    repeated string struct_ref = 1;
+
+    // Field name.
+    // @Required
+    string name = 2;
+
+    // Field type.
+    // @Required
+    TypeDef type = 3;
+  }
+
+  // FuncCallExpr models a function call expression.
+  message FuncCallExpr {
+    // Function ID.
+    // @Required
+    string id = 1;
+
+    // Function name.
+    // @Required
+    string name = 2;
+
+    // Function arguments.
+    // @Optional
+    repeated Expr args = 3;
+  }
+
+  // ParamRefExpr models a reference to parameter of a function or expression.
+  message ParamRefExpr {
+    // @Required
+    string name = 1;
+  }
+
+  // PrimaryExpr models a primary expression.
+  message PrimaryExpr {
+    // Expression node.
+    // @Required
+    Expr expr = 1;
+  }
+
+  // End of nested definitions.
+
+  // Type of the expression represented by the node.
+  // @Required
+  TypeDef type = 1;
+
+  // Mutually exclusive fields.
+  // @Required
+  oneof kind {
+    // @Optional
+    IntLiteral int_literal = 2;
+
+    // @Optional
+    RealLiteral float_literal = 3;
+
+    // @Optional
+    StringLiteral string_literal = 4;
+
+    // @Optional
+    BooleanLiteral boolean_literal = 5;
+
+    // @Optional
+    EnumLiteral enum_literal = 6;
+
+    // @Optional
+    IntRangeExpr int_range_expr = 7;
+
+    // @Optional
+    UnaryOpExpr unary_op_expr = 8;
+
+    // @Optional
+    BinaryOpExpr binary_op_expr = 9;
+
+    // @Optional
+    TernaryOpExpr ternanry_op_expr = 10;
+
+    // @Optional
+    SetExpr set_expr = 11;
+
+    // @Optional
+    VarRefExpr var_ref = 12;
+
+    // @Optional
+    FieldRefExpr field_ref = 13;
+
+    // @Optional
+    FuncCallExpr func_call = 14;
+
+    // @Optional
+    ParamRefExpr param_ref = 15;
+
+    // @Optional
+    PrimaryExpr primary_expr = 16;
+  }
+}
+
+// Definition of a parameter of a function or a parameterized expression.
+message ParamDef {
+  // Name of the parameter.
+  // @Required
+  string name = 1;
+
+  // Type of the parameter.
+  // @Required
+  TypeDef type = 2;
+
+  // Default value of the parameter.
+  // @Optional
+  Expr default_value = 3;
+
+  // Variable-length arguments (varargs) flag.
+  // This parameter matches any number of arguments of the parameter's type, including none (0).
+  // Only the last parameter of a function or a parameterized expression can be varargs.
+  // @Optional
+  bool var_args = 4;
+}
+
+// Declaration of a function.
+// The following functions must be supported:
+//
+// isNull(list<T>) -> bool
+// isNull(map<K,V>) -> bool
+// isNull(set<T>) -> bool
+// isNull(string) -> bool
+//
+// isNullOrEmpty(list<T>) -> bool
+// isNullOrEmpty(map<K,V>) -> bool
+// isNullOrEmpty(set<T>) -> bool
+// isNullOrEmpty(string) -> bool
+//
+// empty(list<T>) -> bool
+// empty(map<K,V>) -> bool
+// empty(set<T>) -> bool
+// empty(string) -> bool
+//
+// len(list<T>) -> int
+// len(map<K,V>) -> int
+// len(set<T>) -> int
+// len(string) -> int
+//
+// list<T>.count(f(T) -> bool) -> int
+// set<T>.count(f(T) -> bool) -> int
+//
+// list<T>.any(f(T) -> bool) -> bool
+// set<T>.any(f(T) -> bool) -> bool
+//
+// list<T>.all(f(T) -> bool) -> bool
+// set<T>.all(f(T) -> bool) -> bool
+//
+// list<T>.all(f(T) -> bool) -> bool
+// set<T>.all(f(T) -> bool) -> bool
+//
+// map<K,V>.keys -> set<K>
+// map<K,V>.values -> list<V>
+//
+// list<T>.len -> int
+// map<K,V>.len -> int
+// set<T>.len -> int
+// string.len -> int
+message FuncDecl {
+  // Function unique ID.
+  // @Required
+  string id = 1;
+
+  // Function name.
+  // @Required
+  string name = 2;
+
+  // Function parameter definitions.
+  // @Optional
+  // @Constraints: $.count(isNull) == 0
+  repeated ParamDef param_defs = 3;
+
+  // Type of the returned value.
+  // @Required
+  TypeDef result_type = 4;
+}
+
+message ParsingContext {
+  
+  // @Optional
+  repeated TypeDef type_defs = 1;
+  
+  // @Optional
+  repeated FuncDecl func_decls = 2;
+
+  // @Optional
+  repeated ParamDef expr_param_defs = 3;
+}
