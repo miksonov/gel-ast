@@ -1,0 +1,1279 @@
+// This file defines a serializable represenation of AST (Abstract Syntax Tree) nodes for GEL expressions.
+// Protobuf definitions in this file should be used by GEL expression parsers, interpeters, and code generators.
+syntax = "proto3";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+package org.wanderlinks.gel.v1;
+
+option cc_enable_arenas = true;
+option go_package = "wanderlinks.org/gel/expr";
+option java_multiple_files = true;
+option java_package = "org.wanderlinks.gel.v1";
+
+// TypeDef models a GEL type definition.
+message TypeDef {
+  // PrimitiveType enumerates supported primitive (built-in non-composite) data types.
+  enum PrimitiveType {
+    // Special value that indicates that an enum field is not initialized.
+    PRIMITIVE_TYPE_UNSPECIFIED = 0;
+
+    // Boolean values.
+    PRIMITIVE_TYPE_BOOL = 1;
+
+    // Sequence of bytes.
+    PRIMITIVE_TYPE_BYTES = 2;
+
+    // Real numeric values.
+    PRIMITIVE_TYPE_REAL = 3;
+
+    // Integer numeric values.
+    PRIMITIVE_TYPE_INT = 4;
+
+    // Strings.
+    PRIMITIVE_TYPE_STRING = 5;
+
+    // Durations.
+    PRIMITIVE_TYPE_DURATION = 6;
+
+    // Timestamps.
+    PRIMITIVE_TYPE_TIMESTAMP = 7;
+  }
+
+  // FieldDef models a definition of a field of a struct or union.
+  message FieldDef {
+    // Field name.
+    // @Required
+    string name = 1;
+
+    // Type definition for the field value.
+    // @Required
+    TypeDef type = 2;
+
+    // Specifies if the field value is not required.
+    // @Optional
+    bool optional = 3;
+
+    // Specifies when the field will become (or had became) available.
+    // @Optional
+    string available_since_version = 4;
+
+    // Specifies when the field will become (or had became) deprecated.
+    // @Optional
+    string deprecated_since_version = 5;
+  }
+
+  // StructTypeDef models a definition of a struct type.
+  // A struct is an aggregate of one or more named values called fields.
+  // Fields of a struct are accessed using . notation.
+  // Note: Field values are optional, hence a struct can have 
+  // non-initalized fields.
+  message StructTypeDef {
+    // Field definitions by field names.
+    // @Required
+    // @Constraints: $.keys.all(isNotEmpty)  => field name is not initialized
+    // @Constraints: $.values.all(isPresent) => missing field definition
+    map<string, FieldDef> field_def_by_name = 1;
+  }
+
+  // UnionTypeDef models a definition of a union type.
+  // A union is an collection of one or more named values called fields,
+  // where no more than one field can be initialized at the same time. 
+  // Fields of a union are accessed using . notation.
+  message UnionTypeDef {
+    // Field definitions by field names.
+    // @Required
+    // @Constraints: $.keys.all(isNotEmpty)  : field name is not set
+    // @Constraints: $.values.all(isPresent) : missing field definition
+    map<string, FieldDef> field_def_by_name = 1;
+  }
+
+  // EnumTypeDef models an enum type definition.
+  message EnumTypeDef {
+    // EnumValueDef models a definition of enum value.
+    message EnumValueDef {
+      // Enum name (value).
+      // @Required
+      string name = 1;
+
+      // Specifies when the enum value will become (or had became) available.
+      // @Optional
+      google.protobuf.Timestamp available_since = 2;
+
+      // Specifies when the enum value will become (or had became) deprecated.
+      // @Optional
+      google.protobuf.Timestamp deprecated_since = 3;
+    }
+
+    // Enum value definitions by enum values.
+    // @Required
+    // @Constraints: $.keys.all(isNotEmpty)  => enum name is not set
+    // @Constraints: $.values.all(isPresent) => missing enum definition
+    map<string, EnumValueDef> enum_value_by_name = 1;
+  }
+
+  // ListTypeDef models a list type definition for either typed or generic
+  // list.
+  // A list is an ordered sequence of elements. Lists could be empty.
+  // Elements of a list could be accessed by their indices using [] operator.
+  message ListTypeDef {
+    // Type definition of list elements.
+    // If this field is not set, then this ListTypeDef defines a generic list type.
+    // @Optional
+    TypeDef element_type = 1;
+  }
+
+  // SetTypeDef models a set type definition.
+  // A set is a collection (potentially empty) of unique elements.
+  message SetTypeDef {
+    // Type definition of set elements.
+    // If this field is not set, then this SetTypeDef defines a generic set type.
+    // @Optional
+    TypeDef element_type = 1;
+  }
+
+  // MapTypeDef models a map type definition.
+  // A map is a dictionary which values are accessed by corresponding keys.
+  message MapTypeDef {
+    // Type definition of map keys.
+    // If this field is not set, then this MapTypeDef defines a generic map type.
+    // @Optional
+    TypeDef key_type = 1;
+
+    // Type definition of map values.
+    // If this field is not set, then this MapTypeDef defines a generic map type.
+    // @Optional
+    TypeDef value_type = 2;
+  }
+
+  // IntRangeTypeDef models an integer range type definiton
+  // An integer range is a sorted collection of contiguous integer values constrained by
+  // lower and upper bounds.
+  message IntRangeTypeDef {}
+
+  // TimestampRangeTypeDef models a timestamp range type definiton
+  // A timestamp range is a sorted collection of contiguous timestamp values constrained by
+  // lower and upper bounds.
+  message TimestampRangeTypeDef {}
+
+  // Name of the type.
+  // @Required
+  string name = 1;
+
+  // Indicates if this type allows optional values (nil).
+  // @Required
+  bool allows_optional_values = 2;
+
+  // Mutually exclusive fields.
+  // @Required
+  oneof kind {
+    // Primitive type.
+    // @Optional
+    PrimitiveType primitive_type = 10;
+
+    // List type.
+    // @Optional
+    ListTypeDef list_type = 11;
+
+    // Set type.
+    // @Optional
+    SetTypeDef set_type = 12;
+
+    // Map type.
+    // @Optional
+    MapTypeDef map_type = 13;
+
+    // Struct type.
+    // @Optional
+    StructTypeDef struct_type = 14;
+
+    // Union type.
+    // @Optional
+    UnionTypeDef union_type = 15;
+
+    // Enum type.
+    // @Optional
+    EnumTypeDef enum_type = 16;
+
+    // Integer range type.
+    // @Optional
+    IntRangeTypeDef int_range_type = 17;
+
+    // Timestamp range type.
+    // @Optional
+    TimestampRangeTypeDef timestamp_range_type = 18;
+  }
+}
+
+// Expr models a node of the Abstract Syntax Tree (AST) representing a GEL expression.
+message Expr {
+  // IntLiteral models an integer number literal.
+  message IntLiteral {
+    // @Optional
+    int64 value = 1;
+  }
+
+  // RealLiteral models a real number literal.
+  message RealLiteral {
+    // @Optional
+    double value = 1;
+  }
+
+  // StringLiteral models a string literal.
+  message StringLiteral {
+    // @Optional
+    string value = 1;
+  }
+
+  // BooleanLiteral models a boolean literal.
+  message BooleanLiteral {
+    // @Optional
+    bool value = 1;
+  }
+
+  // DurationLiteral models a duration literal.
+  message DurationLiteral {
+    // Examples of string represenation of duration literals: 
+    //  2w    - two weeks
+    //  1d    - one day
+    //  3h    - three hours
+    //  45min - forty five minutes
+    //  17s   - seventeen seconds
+    //  10ms  - ten miliseconds
+    //  5mcs  - five microseconds
+    //  70ns  - sevenry nanoseconds 
+    // @Required
+    google.protobuf.Duration value = 1;
+  }
+
+  // TimestampLiteral models a timestamp literal.
+  message TimestampLiteral {
+    // A string represenation of timestamp literals uses RFC 3339 syntax for date-time:
+    //
+    //   date-fullyear   = 4DIGIT
+    //   date-month      = 2DIGIT  ; 01-12
+    //   date-mday       = 2DIGIT  ; 01-28, 01-29, 01-30, 01-31 based on
+    //                             ; month/year
+    //   time-hour       = 2DIGIT  ; 00-23
+    //   time-minute     = 2DIGIT  ; 00-59
+    //   time-second     = 2DIGIT  ; 00-58, 00-59, 00-60 based on leap second
+    //                             ; rules
+    //   time-secfrac    = "." 1*DIGIT
+    //   time-numoffset  = ("+" / "-") time-hour ":" time-minute
+    //   time-offset     = "Z" / time-numoffset
+    //   
+    //   partial-time    = time-hour ":" time-minute ":" time-second
+    //                     [time-secfrac]
+    //   full-date       = date-fullyear "-" date-month "-" date-mday
+    //   full-time       = partial-time time-offset
+    //   
+    //   date-time       = full-date "T" full-time
+    //
+    // Examples:
+    //   1985-04-12T23:20:50.52Z
+    //     20 minutes and 50.52 seconds after the 23rd hour of April 12th, 1985 in UTC.
+    //
+    //   1996-12-19T16:39:57-08:00
+    //     39 minutes and 57 seconds after the 16th hour of December 19th, 1996 with an offset of -08:00 
+    //     from UTC (Pacific Standard Time).  Note that this is equivalent to 1996-12-20T00:39:57Z in UTC.
+    //
+    //   1990-12-31T23:59:60Z
+    //     the leap second inserted at the end of 1990.
+    //
+    //   1990-12-31T15:59:60-08:00
+    //     the same leap second in Pacific Standard Time, 8 hours behind UTC.
+    //
+    //   1937-01-01T12:00:27.87+00:20
+    //     January 1, 1937, Netherlands time.  Standard time in the Netherlands was exactly 19
+    //     minutes and 32.13 seconds ahead of UTC by law from 1909-05-01 through 1937-06-30.
+    //
+    //   P.S. Leap year detection: (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0))
+    //
+    // @Optional
+    google.protobuf.Timestamp value = 1;
+  }
+
+  // EnumLiteral models an enum literal.
+  message EnumLiteral {
+    // @Required
+    string name = 1;
+  }
+
+  // IntRangeExpr models an open or closed contiguous range of integer values.
+  message IntRangeExpr {
+    // Indicates if the range is open (true) or closed (false).
+    // A range is called an *open range* when the upper boundary is NOT INCLUDED
+    // in the range.
+    // A range is called a *closed range* when the upper boundary is INCLUDED
+    // in the range.
+    // @Required
+    bool open_range = 1;
+
+    // Lower boundary of the range.
+    // @Required
+    // @Constraints: $.type.primitive_type == PRIMITIVE_TYPE_INT
+    Expr lower_bound = 2;
+
+    // Upper boundary of the range.
+    // @Required
+    // @Constraints: $.type.primitive_type == PRIMITIVE_TYPE_INT
+    Expr upper_bound = 3;
+  }
+
+  // TimestampRangeExpr models an open or closed contiguous range of timestamps.
+  message TimestampRangeExpr {
+    // Indicates if the range is open (true) or closed (false).
+    // A range is called an *open range* when the upper boundary is NOT INCLUDED
+    // in the range.
+    // A range is called a *closed range* when the upper boundary is INCLUDED
+    // in the range.
+    // @Required
+    bool open_range = 1;
+
+    // Lower boundary of the range.
+    // @Required
+    // @Constraints: $.type.primitive_type == PRIMITIVE_TYPE_TIMESTAMP
+    Expr lower_bound = 2;
+
+    // Upper boundary of the range.
+    // @Required
+    // @Constraints: $.type.primitive_type == PRIMITIVE_TYPE_TIMESTAMP
+    Expr upper_bound = 3;
+  }
+
+  // SetExpr models a set of values of the same type.
+  message SetExpr {
+    // Elements of the set.
+    // @Optional
+    // @Constraints: $.map($1.type).unique().size() == 1
+    //              : all elements of a set must have the same type
+    repeated Expr values = 1;
+  }
+
+  // PrefixUnaryOpExpr models a prefix unary operation expression: {op} {RHS}.
+  // The following operations must be supported:
+  //
+  // Numeric Negation Operation: "-" {RHS}
+  // +==========+=============+========================================+
+  // | RHS Type | Result Type | Result Description                     |
+  // +==========+=============+========================================+
+  // | int      | int         | Returns -1 * RHS                       |
+  // +----------+-------------+----------------------------------------+
+  // | real     | real        | Returns -1 * RHS                       |
+  // +----------+-------------+----------------------------------------+
+  //
+  // Logical Negation Operation: "not" | "!" {RHS}
+  // +==========+=============+========================================+
+  // | RHS Type | Result Type | Result Description                     |
+  // +==========+=============+========================================+
+  // | bool     | bool        | TRUE if RHS if FALSE, and FALSE        |
+  // |          |             | otherwise.                             |
+  // +----------+-------------+----------------------------------------+
+  //
+  // Bitwise NOT Operation: "~" {RHS}
+  // +==========+=============+========================================+
+  // | RHS Type | Result Type | Result Description                     |
+  // +==========+=============+========================================+
+  // | int      | int         | Inverts all bits in RHS.               |
+  // +----------+-------------+----------------------------------------+
+  //
+  // Unwrap Optional Value Operation: {LHS} "!"
+  // +==========+=============+========================================+
+  // | LHS Type | Result Type | Result Description                     |
+  // +==========+=============+========================================+
+  // | T?       | T           | T if LHS is set, otherwise throws an   |
+  // |          |             | exception.                             |
+  // +----------+-------------+----------------------------------------+
+  message PrefixUnaryOpExpr {
+    // Operator symbol.
+    // @Required
+    string op = 1;
+
+    // Operand.
+    // @Required
+    Expr rhs = 2;
+  }
+
+  // PostfixUnaryOpExpr models a postfix unary operation expression: {LHS} {op}.
+  // The following operations must be supported:
+  //
+  // Unwrap Optional Value Operation: {LHS} "!"
+  // +==========+=============+========================================+
+  // | LHS Type | Result Type | Result Description                     |
+  // +==========+=============+========================================+
+  // | T?       | T           | T if LHS is set, otherwise throws an   |
+  // |          |             | exception.                             |
+  // +----------+-------------+----------------------------------------+
+  message PostfixUnaryOpExpr {
+    // Operator symbol.
+    // @Required
+    string op = 1;
+
+    // Operand.
+    // @Required
+    Expr lhs = 2;
+  }
+
+  // BinaryOpExpr models a binary operation expression (A op B).
+  // The following operations must be supported:
+  //
+  // Addition Operation: {LHS} "+" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | string   | string   | string      | String concatenation        |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | int      | int         | Sum of two integer values   |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | real     | real        | Sum of two numeric values   |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | int      | real        | Sum of two numeric values   |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | real     | real        | Sum of two real values      |
+  // +----------+----------+-------------+-----------------------------+
+  // | duration | duration | duration    | Sum of two durations        |
+  // +----------+----------+-------------+-----------------------------+
+  // | duration | timestamp| timestamp   | Timestamp RHS advanced by   |
+  // |          |          |             | duration LHS.               |
+  // +----------+----------+-------------+-----------------------------+
+  // | timestamp| duration | timestamp   | Timestamp LHS advanced by   |
+  // |          |          |             | duration RHS.               |
+  // +----------+----------+-------------+-----------------------------+
+  // | set<T>   | T        | set<T>      | New set that contains all   |
+  // |          |          |             | elements from the LHS and   |
+  // |          |          |             | RHS element.                |
+  // |          |          |             | If the LHS set already      |
+  // |          |          |             | has RHS, the result is      |
+  // |          |          |             | LHS set.                    |
+  // +----------+----------+-------------+-----------------------------+
+  // | T        | set<T>   | set<T>      | New set that contains all   |
+  // |          |          |             | elements from the RHS and   |
+  // |          |          |             | LHS element.                |
+  // |          |          |             | If the RHS set already      |
+  // |          |          |             | has LHS, the result is      |
+  // |          |          |             | RHS set.                    |
+  // +----------+----------+-------------+-----------------------------+
+  // | set<T>   | set<T>   | set<T>      | Union of two sets.          |
+  // +----------+----------+-------------+-----------------------------+
+  // | list<T>  | T        | list<T>     | New list that is created    |
+  // |          |          |             | from LHS by appending RHS   |
+  // |          |          |             | to the end of the list.     |
+  // +----------+----------+-------------+-----------------------------+
+  // | T        | list<T>  | list<T>     | New list that is created    |
+  // |          |          |             | from RHS by inserting LHS   |
+  // |          |          |             | as the first element.       |
+  // +----------+----------+-------------+-----------------------------+
+  // | list<T>  | list<T>  | list<T>     | Concatenation of two        |
+  // |          |          |             | lists.                      |
+  // +==========+==========+=============+=============================+
+  //
+  // Subtraction Operation: {LHS} "-" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | int      | int      | int         | Difference between two      |
+  // |          |          |             | integer values.             | 
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | real     | real        | Difference between two      |
+  // |          |          |             | numeric values.             | 
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | int      | real        | Difference between two      |
+  // |          |          |             | numeric values.             | 
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | real     | real        | Difference between two      |
+  // |          |          |             | real values.                | 
+  // +----------+----------+-------------+-----------------------------+
+  // | duration | duration | duration    | Difference between two      |
+  // |          |          |             | durations.                  | 
+  // +----------+----------+-------------+-----------------------------+
+  // | timestamp| timestamp| duration    | Difference between two      |
+  // |          |          |             | timestamps.                 | 
+  // +----------+----------+-------------+-----------------------------+
+  // | timestamp| duration | timestamp   | Timestamp LHS moved back by |
+  // |          |          |             | duration RHS.               |
+  // +----------+----------+-------------+-----------------------------+
+  // | set<T>   | T        | set<T>      | New set that is created     |
+  // |          |          |             | by removing RHS from LHS.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | T        | set<T>   | set<T>      | New set that is created     |
+  // |          |          |             | by removing LHS from RHS.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | set<T>   | set<T>   | set<T>      | New set that is created     |
+  // |          |          |             | by removingall  RHS elements|
+  // |          |          |             | from LHS elements.          |
+  // +----------+----------+-------------+-----------------------------+
+  // | list<T>  | T        | list<T>     | New list that is created    |
+  // |          |          |             | from LHS by removing first  |
+  // |          |          |             | (if any) RHS element.       |
+  // +==========+==========+=============+=============================+
+  //
+  // Division Operation: {LHS} "/" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | int      | int      | int         | Quotient of the divison     |
+  // |          |          |             | of LHS by RHS integer       |
+  // |          |          |             | values.                     |  
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | real     | real        | Difference between two      |
+  // |          |          |             | numeric values.             | 
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | int      | real        | Difference between two      |
+  // |          |          |             | numeric values.             | 
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | real     | real        | Difference between two      |
+  // |          |          |             | real values.                | 
+  // +----------+----------+-------------+-----------------------------+
+  // | duration | int      | duration    | Quotient of the divison     |
+  // |          |          |             | of LHS by RHS.              |  
+  // +----------+----------+-------------+-----------------------------+
+  // | duration | duration | int         | Quotient of the divison     |
+  // |          |          |             | of LHS by RHS.              |  
+  // +==========+==========+=============+=============================+
+  //
+  // Multiplication Operation: {LHS} "*" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | int      | int      | int         | Product of LHS and RHS.     |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | real     | real        | Product of LHS and RHS.     |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | int      | real        | Product of LHS and RHS.     |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | real     | real        | Product of LHS and RHS.     |
+  // +----------+----------+-------------+-----------------------------+
+  // | duration | int      | duration    | Product of LHS by RHS.      |  
+  // +==========+==========+=============+=============================+
+  //
+  // Remainder (Modulus) Operation: {LHS} "%" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | int      | int      | int         | Reminder of the division    |
+  // |          |          |             | of LHS by RHS integer       |
+  // |          |          |             | values.                     |
+  // |          |          |             | In cases where the LHS is   |
+  // |          |          |             | negative, the result is a   |
+  // |          |          |             | negative remainder.         |  
+  // +----------+----------+-------------+-----------------------------+
+  // | duration | duration | duration    | Reminder of the division    |
+  // |          |          |             | of LHS by RHS.              |  
+  // |          |          |             | In cases where the LHS is   |
+  // |          |          |             | negative, the result is a   |
+  // |          |          |             | negative remainder.         |  
+  // +==========+==========+=============+=============================+
+  //
+  // Equality Operation: {LHS} "==" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | string   | string   | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | strings are exactly the     |
+  // |          |          |             | same and FALSE otherwise.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | int      | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | integers are exactly the    |
+  // |          |          |             | same and FALSE otherwise.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | real     | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | real numbers are exactly the|
+  // |          |          |             | same and FALSE otherwise.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | bytes    | bytes    | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | byte strings are exactly the|
+  // |          |          |             | same and FALSE otherwise.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | duration | duration | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | durations are exactly the   |
+  // |          |          |             | same and FALSE otherwise.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | timestamp| timestamp| bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | timestamps are exactly the  |
+  // |          |          |             | same and FALSE otherwise.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | set<T>   | set<T>   | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | sets are exactly the        |
+  // |          |          |             | same and FALSE otherwise.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | list<T>  | list<T>  | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | lists are exactly the       |
+  // |          |          |             | same and FALSE otherwise.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | struct   | struct   | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | structs are exactly the     |
+  // |          |          |             | same and FALSE otherwise.   |
+  // +==========+==========+=============+=============================+
+  //
+  // Non-Equality Operation: {LHS} "!=" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | string   | string   | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | strings are exactly the     |
+  // |          |          |             | same and TRUE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | int      | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | integers are exactly the    |
+  // |          |          |             | same and TRUE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | real     | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | real numbers are exactly the|
+  // |          |          |             | same and TRUE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | bytes    | bytes    | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | byte strings are exactly the|
+  // |          |          |             | same and TRUE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | duration | duration | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | durations are exactly the   |
+  // |          |          |             | same and TRUE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | timestamp| timestamp| bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | timestamps are exactly the  |
+  // |          |          |             | same and TRUE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | set<T>   | set<T>   | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | sets are exactly the        |
+  // |          |          |             | same and TRUE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | list<T>  | list<T>  | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | lists are exactly the       |
+  // |          |          |             | same and TRUE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | struct   | struct   | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | structs are exactly the     |
+  // |          |          |             | same and TRUE otherwise.    |
+  // +==========+==========+=============+=============================+
+  //
+  // Case-Insenitive String Equality Operation: {LHS} "~~" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | string   | string   | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | strings are equal ignoring  |
+  // |          |          |             | case differences and        |
+  // |          |          |             | FALSE otherwise.            |
+  // +==========+==========+=============+=============================+
+  //
+  // Less-Than Operation: {LHS} "<" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | string   | string   | bool        | TRUE if the LHS is          |
+  // |          |          |             | lexicographically less than |
+  // |          |          |             | the RHS and FALSE otherwise.|
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | int      | bool        | TRUE if the LHS less than   |
+  // |          |          |             | RHS and FALSE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | real     | bool        | TRUE if the LHS less than   |
+  // |          |          |             | RHS and FALSE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | real     | bool        | TRUE if the LHS less than   |
+  // |          |          |             | RHS and FALSE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | int      | bool        | TRUE if the LHS less than   |
+  // |          |          |             | RHS and FALSE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | duration | duration | bool        | TRUE if the LHS less than   |
+  // |          |          |             | RHS and FALSE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | timestamp| timestamp| bool        | TRUE if the LHS less than   |
+  // |          |          |             | RHS and FALSE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | set<T>   | set<T>   | bool        | TRUE if the LHS is a subset |
+  // |          |          |             | of RHS and FALSE otherwise. |
+  // +==========+==========+=============+=============================+
+  //
+  // Less-Or-Equal-To Operation: {LHS} "<=" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | string   | string   | bool        | TRUE if the LHS is the same |
+  // |          |          |             | as RHS or lexicographically |
+  // |          |          |             | less than the RHS           |
+  // |          |          |             | and FALSE otherwise.        |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | int      | bool        | TRUE if the LHS less than   |
+  // |          |          |             | or equal to RHS             |
+  // |          |          |             | and FALSE otherwise.        |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | real     | bool        | TRUE if the LHS less than   |
+  // |          |          |             | or equal to RHS             |
+  // |          |          |             | and FALSE otherwise.        |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | real     | bool        | TRUE if the LHS less than   |
+  // |          |          |             | or equal to RHS             |
+  // |          |          |             | and FALSE otherwise.        |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | int      | bool        | TRUE if the LHS less than   |
+  // |          |          |             | or equal to RHS             |
+  // |          |          |             | and FALSE otherwise.        |
+  // +----------+----------+-------------+-----------------------------+
+  // | duration | duration | bool        | TRUE if the LHS less than   |
+  // |          |          |             | or equal to RHS             |
+  // |          |          |             | and FALSE otherwise.        |
+  // +----------+----------+-------------+-----------------------------+
+  // | timestamp| timestamp| bool        | TRUE if the LHS less than   |
+  // |          |          |             | or equal to RHS             |
+  // |          |          |             | and FALSE otherwise.        |
+  // +----------+----------+-------------+-----------------------------+
+  // | set<T>   | set<T>   | bool        | TRUE if the LHS is the same |
+  // |          |          |             | as RHS or LHS is a subset   |
+  // |          |          |             | of RHS, and FALSE otherwise.|
+  // +==========+==========+=============+=============================+
+  //
+  // Greater-Than Operation: {LHS} ">" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | string   | string   | bool        | FALSE if the LHS is         |
+  // |          |          |             | lexicographically less than |
+  // |          |          |             | the RHS and TRUE otherwise. |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | int      | bool        | FALSE if the LHS less than  |
+  // |          |          |             | RHS and TRUE otherwise.     |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | real     | bool        | FALSE if the LHS less than  |
+  // |          |          |             | RHS and TRUE otherwise.     |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | real     | bool        | FALSE if the LHS less than  |
+  // |          |          |             | RHS and TRUE otherwise.     |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | int      | bool        | FALSE if the LHS less than  |
+  // |          |          |             | RHS and TRUE otherwise.     |
+  // +----------+----------+-------------+-----------------------------+
+  // | duration | duration | bool        | FALSE if the LHS less than  |
+  // |          |          |             | RHS and TRUE otherwise.     |
+  // +----------+----------+-------------+-----------------------------+
+  // | timestamp| timestamp| bool        | FALSE if the LHS less than  |
+  // |          |          |             | RHS and TRUE otherwise.     |
+  // +----------+----------+-------------+-----------------------------+
+  // | set<T>   | set<T>   | bool        | TRUE if the LHS is a        |
+  // |          |          |             | superset of RHS             |
+  // |          |          |             | and FALSE otherwise.        |
+  // +==========+==========+=============+=============================+
+  //
+  // Greater-Or-Equal-To Operation: {LHS} ">=" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | string   | string   | bool        | TRUE if the LHS is the same |
+  // |          |          |             | as RHS or lexicographically |
+  // |          |          |             | greater than the RHS        |
+  // |          |          |             | and FALSE otherwise.        |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | int      | bool        | TRUE if the LHS greater than|
+  // |          |          |             | or equal to RHS             |
+  // |          |          |             | and FALSE otherwise.        |
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | real     | bool        | TRUE if the LHS greater than|
+  // |          |          |             | or equal to RHS             |
+  // |          |          |             | and FALSE otherwise.        |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | real     | bool        | TRUE if the LHS greater than|
+  // |          |          |             | or equal to RHS             |
+  // |          |          |             | and FALSE otherwise.        |
+  // +----------+----------+-------------+-----------------------------+
+  // | real     | int      | bool        | TRUE if the LHS greater than|
+  // |          |          |             | or equal to RHS             |
+  // |          |          |             | and FALSE otherwise.        |
+  // +----------+----------+-------------+-----------------------------+
+  // | duration | duration | bool        | TRUE if the LHS greater than|
+  // |          |          |             | or equal to RHS             |
+  // |          |          |             | and FALSE otherwise.        |
+  // +----------+----------+-------------+-----------------------------+
+  // | timestamp| timestamp| bool        | TRUE if the LHS greater than|
+  // |          |          |             | or equal to RHS             |
+  // |          |          |             | and FALSE otherwise.        |
+  // +----------+----------+-------------+-----------------------------+
+  // | set<T>   | set<T>   | bool        | TRUE if the LHS is the same |
+  // |          |          |             | as RHS or LHS is a superset |
+  // |          |          |             | of RHS, and FALSE otherwise.|
+  // +==========+==========+=============+=============================+
+  //
+  // Nil-Coalescing Operation: {LHS} "??" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | T?       | T        | T?          | LHS if the LHS is not nil,  |
+  // |          |          |             | otherwise RHS converted to  |
+  // |          |          |             | optional value of type T?.  |
+  // +==========+==========+=============+=============================+
+  //
+  // Closed Range Generator: {LHS} "..." {RHS}
+  // +==========+==========+===============+=============================+
+  // | LHS Type | RHS Type | Result Type   | Result Description          |
+  // +==========+==========+===============+=============================+
+  // | int      | int      | intRange      | Closed range of integer     |
+  // |          |          |               | values where LHS is the     |
+  // |          |          |               | lower boundary and RHS is   |
+  // |          |          |               | the upper boundary.         |
+  // +----------+----------+---------------+-----------------------------+
+  // | timestamp| timestamp| timestampRange| Closed range of timestamp   |
+  // |          |          |               | values where LHS is the     |
+  // |          |          |               | lower boundary and RHS is   |
+  // |          |          |               | the upper boundary.         |
+  // +==========+==========+===============+=============================+
+  //
+  // Open Range Generator: {LHS} "..<" {RHS}
+  // +==========+==========+===============+=============================+
+  // | LHS Type | RHS Type | Result Type   | Result Description          |
+  // +==========+==========+===============+=============================+
+  // | int      | int      | intRange      | Open range of integer       |
+  // |          |          |               | values where LHS is the     |
+  // |          |          |               | lower boundary and RHS is   |
+  // |          |          |               | the upper boundary.         |
+  // +----------+----------+---------------+-----------------------------+
+  // | timestamp| timestamp| timestampRange| Closed range of timestamp   |
+  // |          |          |               | values where LHS is the     |
+  // |          |          |               | lower boundary and RHS is   |
+  // |          |          |               | the upper boundary.         |
+  // +==========+==========+===============+=============================+
+  //
+  // Operation IN: {LHS} "in" {RHS}
+  // +==========+===============+=============+=============================+
+  // | LHS Type | RHS Type      | Result Type | Result Description          |
+  // +==========+===============+=============+=============================+
+  // | T        | set<T>        | bool        | TRUE if LHS is a member of  |
+  // |          |               |             | of RHS, and FALSE otherwise.|
+  // +----------+---------------+-------------+-----------------------------+
+  // | set<T>   | set<T>        | bool        | TRUE if LHS is a subset of  |
+  // |          |               |             | of RHS, and FALSE otherwise.|
+  // +----------+---------------+-------------+-----------------------------+
+  // | T        | list<T>       | bool        | TRUE if RHS contains        |
+  // |          |               |             | LHS, and FALSE otherwise.   |
+  // +----------+---------------+-------------+-----------------------------+
+  // | K        | map<K,V>      | bool        | TRUE if RHS contains key    |
+  // |          |               |             | LHS, and FALSE otherwise.   |
+  // +----------+---------------+-------------+-----------------------------+
+  // | int      | intRange      | bool        | TRUE if LHS is in the range |
+  // |          |               |             | RHS, and FALSE otherwise.   |
+  // +----------+---------------+-------------+-----------------------------+
+  // | timestamp| timestampRange| bool        | TRUE if LHS is in the range |
+  // |          |               |             | RHS, and FALSE otherwise.   |
+  // +==========+===============+=============+=============================+
+  //
+  // Operation Logical AND: {LHS} "and" | "&&" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | bool     | bool     | bool        | TRUE if both LHS and RHS are|
+  // |          |          |             | TRUE, and FALSE otherwise.  |
+  // +==========+==========+=============+=============================+
+  //
+  // Operation Logical OR: {LHS} "or" | "||" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | bool     | bool     | bool        | TRUE if either or both LHS  |
+  // |          |          |             | and RHS are TRUE,           |
+  // |          |          |             | and FALSE otherwise.        |
+  // +==========+==========+=============+=============================+
+  //
+  // Operation EXclusive OR: {LHS} "xor" | "^^" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | bool     | bool     | bool        | TRUE if both LHS            |
+  // |          |          |             | and RHS are different,      |
+  // |          |          |             | and FALSE otherwise.        |
+  // +==========+==========+=============+=============================+
+  //
+  // Operation Pattern Matching: {LHS} "~=" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | string   | string   | bool        | TRUE if LHS matches regular |
+  // |          |          |             | expression (pattern) RHS,   |
+  // |          |          |             | and FALSE otherwise.        |
+  // +==========+==========+=============+=============================+
+  //
+  // Subscript Operation: {LHS} "[" {RHS} "]"
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | list<T>  | int      | T           | Element of the list at the  |
+  // |          |          |             | position specified by RHS,  |
+  // |          |          |             | or throws an exception if   |
+  // |          |          |             | the index out of range.     |
+  // +----------+----------+-------------+-----------------------------+
+  // | map<K,V> | K        | V?          | Element of the map at the   |
+  // |          |          |             | position specified by RHS.  |
+  // +==========+==========+=============+=============================+
+  //
+  // Operation Bitwise OR: {LHS} "|" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | int      | int      | int         | Bitwise OR of LHS and RHS.  |
+  // +==========+==========+=============+=============================+
+  //
+  // Operation Bitwise AND: {LHS} "&" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | int      | int      | int         | Bitwise AND of LHS and RHS. |
+  // +==========+==========+=============+=============================+
+  //
+  // Operation Bitwise ANXOR: {LHS} "^" {RHS}
+  // +==========+==========+=============+=============================+
+  // | LHS Type | RHS Type | Result Type | Result Description          |
+  // +==========+==========+=============+=============================+
+  // | int      | int      | int         | Bitwise XOR of LHS and RHS. |
+  // +==========+==========+=============+=============================+
+  message BinaryOpExpr {
+    // Operator symbol.
+    // @Required
+    string op = 1;
+
+    // Left hand side operand.
+    // @Required
+    Expr lhs = 2;
+
+    // Right hand side operand.
+    // @Required
+    Expr rhs = 3;
+  }
+
+  // TernaryOpExpr models a ternary operation (a ? b : c).
+  //
+  // Ternary Operation: {OP1} "?" {OP2} ":" {OP3}
+  // +==========+==========+==========+=============+===========================+
+  // | OP1 Type | OP2 Type | OP3 Type | Result Type | Result Description        |
+  // +==========+==========+==========+=============+===========================+
+  // | bool     | T        | T        | T           | OP2 if OP1 is TRUE or OP3 |
+  // |          |          |          |             | otherwise.                |
+  // +==========+==========+==========+=============+===========================+
+  message TernaryOpExpr {
+    // Predicate which is used to select the result of the operation.
+    // @Required
+    Expr predicate = 1;
+
+    // Result of the operation if the predicate is evaluated to true.
+    // @Required
+    Expr true_expr = 2;
+
+    // Result of the operation if the predicate is evaluated to false.
+    // @Required
+    Expr false_expr = 3;
+  }
+
+  // VarRefExpr models a reference to a variable value.
+  message VarRefExpr {
+    // Variable name.
+    // @Required
+    string name = 1;
+
+    // Variable type.
+    // @Required
+    TypeDef type = 2;
+  }
+
+  // FieldRefExpr models a reference to a struct field.
+  message FieldRefExpr {
+    // Fully qualified name of the struct that contains the field.
+    // The first element must be the name of the top level struct in the parsing context.
+    // @Required
+    repeated string struct_ref = 1;
+
+    // Field name.
+    // @Required
+    string name = 2;
+
+    // Field type.
+    // @Required
+    TypeDef type = 3;
+  }
+
+  // FuncCallExpr models a function call expression.
+  message FuncCallExpr {
+    // Function ID.
+    // @Required
+    string id = 1;
+
+    // Function name.
+    // @Required
+    string name = 2;
+
+    // Function arguments.
+    // @Optional
+    repeated Expr args = 3;
+  }
+
+  // ParamRefExpr models a reference to parameter of a function or expression.
+  message ParamRefExpr {
+    // @Required
+    string name = 1;
+  }
+
+  // PrimaryExpr models a primary expression.
+  message PrimaryExpr {
+    // Expression node.
+    // @Required
+    Expr expr = 1;
+  }
+
+  //// End of nested definitions.
+
+  // Type of the expression represented by the node.
+  // @Required
+  TypeDef type = 1;
+
+  // Mutually exclusive fields.
+  // @Required
+  oneof kind {
+    // @Optional
+    IntLiteral int_literal = 2;
+
+    // @Optional
+    RealLiteral float_literal = 3;
+
+    // @Optional
+    StringLiteral string_literal = 4;
+
+    // @Optional
+    BooleanLiteral boolean_literal = 5;
+
+    // @Optional
+    DurationLiteral duration_literal = 6;
+
+    // @Optional
+    TimestampLiteral timestamp_literal = 7;
+
+    // @Optional
+    EnumLiteral enum_literal = 8;
+
+    // @Optional
+    IntRangeExpr int_range_expr = 9;
+
+    // @Optional
+    TimestampRangeExpr timestamp_range_expr = 10;
+
+    // @Optional
+    PrefixUnaryOpExpr prefix_unary_op_expr = 11;
+
+    // @Optional
+    PostfixUnaryOpExpr postfix_unary_op_expr = 12;
+
+    // @Optional
+    BinaryOpExpr binary_op_expr = 13;
+
+    // @Optional
+    TernaryOpExpr ternanry_op_expr = 14;
+
+    // @Optional
+    SetExpr set_expr = 15;
+
+    // @Optional
+    VarRefExpr var_ref = 16;
+
+    // @Optional
+    FieldRefExpr field_ref = 17;
+
+    // @Optional
+    FuncCallExpr func_call = 18;
+
+    // @Optional
+    ParamRefExpr param_ref = 19;
+
+    // @Optional
+    PrimaryExpr primary_expr = 20;
+  }
+}
+
+// ParamDecl models a function parameter declaration.
+message ParamDecl {
+  // Name of the parameter.
+  // @Required
+  string name = 1;
+
+  // Type of the parameter.
+  // @Required
+  TypeDef type = 2;
+
+  // Default value of the parameter.
+  // @Optional
+  Expr default_value = 3;
+
+  // Variable-length arguments (varargs) flag.
+  // If it's TRUE, then this parameter matches any number of arguments of 
+  // the parameter's type, including none (0).
+  // Only the last parameter of a function or a parameterized expression can be varargs.
+  // @Optional
+  bool var_args = 4;
+}
+
+// FuncDecl models a function declaration.
+// The following functions must be supported:
+//
+// isZero(int)      -> bool
+// isZero(real)     -> bool
+// isZero(duration) -> bool
+//
+// isPositive(int)      -> bool
+// isPositive(real)     -> bool
+// isPositive(duration) -> bool
+//
+// isNegative(int)      -> bool
+// isNegative(real)     -> bool
+// isNegative(duration) -> bool
+//
+// isNull(T?) -> bool
+//
+// isNotNull(T?) -> bool
+//
+// isNullOrEmpty(list<T>?)  -> bool
+// isNullOrEmpty(map<K,V>?) -> bool
+// isNullOrEmpty(set<T>?)   -> bool
+// isNullOrEmpty(string?)   -> bool
+//
+// isNotNullAndNotEmpty(list<T>?)  -> bool
+// isNotNullAndNotEmpty(map<K,V>?) -> bool
+// isNotNullAndNotEmpty(set<T>?)   -> bool
+// isNotNullAndNotEmpty(string?)   -> bool
+//
+// isEmpty(list<T>)  -> bool
+// isEmpty(map<K,V>) -> bool
+// isEmpty(set<T>)   -> bool
+// isEmpty(string)   -> bool
+//
+// isNotEmpty(list<T>)  -> bool
+// isNotEmpty(map<K,V>) -> bool
+// isNotEmpty(set<T>)   -> bool
+// isNotEmpty(string)   -> bool
+//
+// len(list<T>)  -> int
+// len(map<K,V>) -> int
+// len(set<T>)   -> int
+// len(string)   -> int
+//
+// list<T>.count(f(T) -> bool) -> int
+// set<T>.count(f(T) -> bool)  -> int
+//
+// list<T>.min -> T
+// set<T>.min  -> T
+//
+// list<T>.max -> T
+// set<T>.max  -> T
+//
+// list<T>.any(f(T) -> bool) -> bool
+// set<T>.any(f(T) -> bool)  -> bool
+//
+// list<T>.all(f(T) -> bool) -> bool
+// set<T>.all(f(T) -> bool)  -> bool
+//
+// list<T>.none(f(T) -> bool) -> bool
+// set<T>.none(f(T) -> bool)  -> bool
+//
+// list<T>.find(f(T) -> bool) -> T?
+// set<T>.find(f(T) -> bool)  -> T?
+//
+// list<T>.reduce(R, f(R, T) -> R) -> R
+// set<T>.reduce(R, f(R, T) -> R)  -> R
+//
+// map<K,V>.keys   -> set<K>
+// map<K,V>.values -> list<V>
+//
+// list<T>.len  -> int
+// map<K,V>.len -> int
+// set<T>.len   -> int
+// string.len   -> int
+message FuncDecl {
+  // Function unique ID.
+  // @Required
+  string id = 1;
+
+  // Function name.
+  // @Required
+  string name = 2;
+
+  // Parameter declarations.
+  // @Optional
+  // @Constraints: $.count(isNull) == 0
+  repeated ParamDecl param_decls = 3;
+
+  // Type of the returned value.
+  // @Required
+  TypeDef result_type = 4;
+}
+
+// PrefixUnaryOpDecl models a prefix unary operation declaration.
+message PrefixUnaryOpDecl {
+  // Operation.
+  // @Required
+  string op = 1;
+
+  // Right hand side operand.
+  // @Required
+  TypeDef rhs_type = 2;
+}
+
+// PostfixUnaryOpDecl models a postfix unary operation declaration.
+message PostfixUnaryOpDecl {
+  // Operation.
+  // @Required
+  string op = 1;
+
+  // Left hand side operand.
+  // @Required
+  TypeDef lhs_type = 2;
+}
+
+// BinaryOpDecl models a binary operation declaration.
+message BinaryOpDecl {
+  // Operation.
+  // @Required
+  string op = 1;
+
+  // Left hand side operand.
+  // @Required
+  TypeDef lhs_type = 2;
+
+  // Right hand side operand.
+  // @Required
+  TypeDef rhs_type = 3;
+}
+
+// VarDecl models a variable declaration.
+message VarDecl {
+  // Variable name.
+  // @Required
+  string name = 1;
+
+  // Variable type.
+  // @Required
+  TypeDef type = 2;
+}
+
+// FuncDef models a function definition.
+message FuncDef {
+  // Function declaration.
+  // @Required
+  FuncDecl decl = 1;
+
+  // Function body.
+  // @Required
+  Expr body = 2;
+
+  // External variables referenced by the function.
+  repeated VarDecl external_var_decls = 3;
+
+  // Functions called by the body.
+  // @Optional
+  repeated FuncDecl used_func_decls = 4;
+
+  // Prefix unary operations used by the function.
+  // @Optional
+  repeated PrefixUnaryOpDecl used_prefix_unary_op_decls = 5;
+
+  // Postfix unary operations used by the function.
+  // @Optional
+  repeated PostfixUnaryOpDecl used_postfix_unary_op_decls = 6;
+
+  // Binary operations used by the function.
+  // @Optional
+  repeated BinaryOpDecl used_binary_op_decls = 7;
+}
