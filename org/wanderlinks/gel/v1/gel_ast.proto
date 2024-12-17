@@ -1121,19 +1121,19 @@ message ParamDecl {
 // isNegative(real)     -> bool
 // isNegative(duration) -> bool
 //
-// isNull(T?) -> bool
+// isPresent(T?) -> bool
 //
-// isNotNull(T?) -> bool
+// isAbsent(T?) -> bool
 //
-// isNullOrEmpty(list<T>?)  -> bool
-// isNullOrEmpty(map<K,V>?) -> bool
-// isNullOrEmpty(set<T>?)   -> bool
-// isNullOrEmpty(string?)   -> bool
+// isAbsentOrEmpty(list<T>?)  -> bool
+// IsAbsentOrEmpty(map<K,V>?) -> bool
+// IsAbsentOrEmpty(set<T>?)   -> bool
+// IsAbsentOrEmpty(string?)   -> bool
 //
-// isNotNullAndNotEmpty(list<T>?)  -> bool
-// isNotNullAndNotEmpty(map<K,V>?) -> bool
-// isNotNullAndNotEmpty(set<T>?)   -> bool
-// isNotNullAndNotEmpty(string?)   -> bool
+// IsPresentAndNotEmpty(list<T>?)  -> bool
+// IsPresentAndNotEmpty(map<K,V>?) -> bool
+// IsPresentAndNotEmpty(set<T>?)   -> bool
+// IsPresentAndNotEmpty(string?)   -> bool
 //
 // isEmpty(list<T>)  -> bool
 // isEmpty(map<K,V>) -> bool
@@ -1181,6 +1181,10 @@ message ParamDecl {
 // map<K,V>.len -> int
 // set<T>.len   -> int
 // string.len   -> int
+//
+// emptySet() -> set<?>
+// emptyList() -> list<?>
+// emptyMap() -> map<?>
 message FuncDecl {
   // Function unique ID.
   // @Required
