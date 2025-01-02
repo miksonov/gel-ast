@@ -1,6 +1,4 @@
-bazel_dep(
+module(
     name = "gel-ast",
     version = "0.1.1",
 )
-
-bazel_dep(name = "protobuf", version = "29.2")
