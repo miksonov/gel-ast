@@ -1,1 +1,1 @@
-common --enable_bzlmod --registry="file:///Users/vmiksonov/code/github.com/bazelbuild/bazel-central-registry" --lockfile_mode=off 
+common --enable_bzlmod

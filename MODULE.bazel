@@ -1,3 +1,6 @@
 module(
     name = "gel-ast",
 )
+
+bazel_dep(name = "rules_go", version = "0.50.1")
+bazel_dep(name = "protobuf", version = "29.2")
