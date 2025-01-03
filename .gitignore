@@ -1,0 +1,9 @@
+.DS_Store
+.idea
+.vscode
+bazel-bin
+bazel-gel-ast
+bazel-out
+bazel-testlogs
+*~
+MODULE.bazel.lock
