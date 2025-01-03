@@ -1,6 +1,7 @@
 module(
     name = "gel-ast",
+    compatibility_level = 0,
 )
 
-bazel_dep(name = "rules_go", version = "0.50.1")
-bazel_dep(name = "protobuf", version = "29.2")
+bazel_dep(name = "rules_go", version = "0.50.1", repo_name = "io_bazel_rules_go")
+bazel_dep(name = "protobuf", version = "29.2",   repo_name = "com_google_protobuf")
