@@ -1,2 +1,2 @@
 # gel-ast
-GEL AST node entities defined using Protocol Buffers
+GEL AST node entities definitions

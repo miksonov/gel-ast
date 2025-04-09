@@ -1,16 +1,16 @@
-// This file defines a serializable represenation of AST (Abstract Syntax Tree) nodes for GEL expressions.
-// Protobuf definitions in this file should be used by GEL expression parsers, interpeters, and code generators.
+// This file defines a serializable represenation of AST (Abstract Syntax Tree) nodes for GEL.
+// Protobuf definitions in this file should be used by GEL parsers, interpeters, and code generators.
 syntax = "proto3";
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
-package org.wanderlinks.gel.v1;
+package org.wanderlinks.gel;
 
 option cc_enable_arenas = true;
-option go_package = "wanderlinks.org/gel/expr";
+option go_package = "github.com/miksonov/gel-parser-go/org/wanderlinks/gel/v1pb";
 option java_multiple_files = true;
-option java_package = "org.wanderlinks.gel.v1";
+option java_package = "org.wanderlinks.gel";
 
 // TypeDef models a GEL type definition.
 message TypeDef {
@@ -44,36 +44,35 @@ message TypeDef {
   // FieldDef models a definition of a field of a struct or union.
   message FieldDef {
     // Field name.
-    // @Required
+    //
+    // +Required
     string name = 1;
 
-    // Type definition for the field value.
-    // @Required
+    // Field type.
+    //
+    // +Required
     TypeDef type = 2;
 
-    // Specifies if the field value is not required.
-    // @Optional
-    bool optional = 3;
-
     // Specifies when the field will become (or had became) available.
-    // @Optional
-    string available_since_version = 4;
+    //
+    // +Optional
+    string available_since_version = 3;
 
     // Specifies when the field will become (or had became) deprecated.
-    // @Optional
-    string deprecated_since_version = 5;
+    //
+    // +Optional
+    string deprecated_since_version = 4;
   }
 
   // StructTypeDef models a definition of a struct type.
   // A struct is an aggregate of one or more named values called fields.
-  // Fields of a struct are accessed using . notation.
-  // Note: Field values are optional, hence a struct can have 
-  // non-initalized fields.
+  // Fields of a struct are accessed using "." notation.
   message StructTypeDef {
     // Field definitions by field names.
-    // @Required
-    // @Constraints: $.keys.all(isNotEmpty)  => field name is not initialized
-    // @Constraints: $.values.all(isPresent) => missing field definition
+    //
+    // +Required
+    // +Constraints: $.keys.all(IsNotEmpty)  => field name is not set
+    // +Constraints: $.values.all(IsPresent) => missing field definition
     map<string, FieldDef> field_def_by_name = 1;
   }
 
@@ -83,9 +82,10 @@ message TypeDef {
   // Fields of a union are accessed using . notation.
   message UnionTypeDef {
     // Field definitions by field names.
-    // @Required
-    // @Constraints: $.keys.all(isNotEmpty)  : field name is not set
-    // @Constraints: $.values.all(isPresent) : missing field definition
+    //
+    // +Required
+    // +Constraints: $.keys.all(IsNotEmpty)  : field name is not set
+    // +Constraints: $.values.all(IsPresent) : missing field definition
     map<string, FieldDef> field_def_by_name = 1;
   }
 
@@ -94,22 +94,28 @@ message TypeDef {
     // EnumValueDef models a definition of enum value.
     message EnumValueDef {
       // Enum name (value).
-      // @Required
+      //
+      // +Required
       string name = 1;
 
       // Specifies when the enum value will become (or had became) available.
-      // @Optional
+      //
+      // +Optional
       google.protobuf.Timestamp available_since = 2;
 
       // Specifies when the enum value will become (or had became) deprecated.
-      // @Optional
+      //
+      // +Optional
       google.protobuf.Timestamp deprecated_since = 3;
     }
 
     // Enum value definitions by enum values.
-    // @Required
-    // @Constraints: $.keys.all(isNotEmpty)  => enum name is not set
-    // @Constraints: $.values.all(isPresent) => missing enum definition
+    //
+    // +Required
+    // +Constraints: $.keys.all(IsNotEmpty)
+    //  => [EMPTY_ENUM_DEF]: enum name is not set
+    // +Constraints: $.values.all(IsPresent) 
+    //  => [MISSING_ENUM]: missing enum definition
     map<string, EnumValueDef> enum_value_by_name = 1;
   }
 
@@ -120,7 +126,8 @@ message TypeDef {
   message ListTypeDef {
     // Type definition of list elements.
     // If this field is not set, then this ListTypeDef defines a generic list type.
-    // @Optional
+    //
+    // +Optional
     TypeDef element_type = 1;
   }
 
@@ -129,80 +136,122 @@ message TypeDef {
   message SetTypeDef {
     // Type definition of set elements.
     // If this field is not set, then this SetTypeDef defines a generic set type.
-    // @Optional
+    //
+    // +Optional
     TypeDef element_type = 1;
   }
 
-  // MapTypeDef models a map type definition.
+  // MapTypeDef models a map type.
   // A map is a dictionary which values are accessed by corresponding keys.
   message MapTypeDef {
     // Type definition of map keys.
     // If this field is not set, then this MapTypeDef defines a generic map type.
-    // @Optional
+    //
+    // +Optional
     TypeDef key_type = 1;
 
     // Type definition of map values.
     // If this field is not set, then this MapTypeDef defines a generic map type.
-    // @Optional
+    //
+    // +Optional
     TypeDef value_type = 2;
   }
 
-  // IntRangeTypeDef models an integer range type definiton
-  // An integer range is a sorted collection of contiguous integer values constrained by
-  // lower and upper bounds.
-  message IntRangeTypeDef {}
+  // RangeTypeDef models a range type.
+  message RangeTypeDef {
+    // Range boundary type.
+    // It should allow int, real, duration, and timestamp ranges.
+    //
+    // +Required
+    TypeDef boundary_type = 1;
+  }
 
-  // TimestampRangeTypeDef models a timestamp range type definiton
-  // A timestamp range is a sorted collection of contiguous timestamp values constrained by
-  // lower and upper bounds.
-  message TimestampRangeTypeDef {}
+  // AnyTypeDef models a placeholder type for generic types.
+  message AnyTypeDef {
+  }
+
+  // FuncType models a function type.
+  message FuncTypeDef {
+    // Parameter declarations.
+    //
+    // +Optional
+    // +Constraints: $.all(isPresent)
+    repeated TypeDef param_types = 1;
+
+    // Indicates that the last parameter of the function is a vararg parameter.
+    //
+    // +Required
+    bool var_args = 2;
+
+    // Type of the returned value.
+    //
+    // +Required
+    TypeDef result_type = 3;
+  }
 
   // Name of the type.
-  // @Required
+  //
+  // +Required
   string name = 1;
 
   // Indicates if this type allows optional values (nil).
-  // @Required
+  //
+  // +Required
   bool allows_optional_values = 2;
 
   // Mutually exclusive fields.
-  // @Required
+  //
+  // +Required
   oneof kind {
     // Primitive type.
-    // @Optional
+    //
+    // +Optional
     PrimitiveType primitive_type = 10;
 
     // List type.
-    // @Optional
+    //
+    // +Optional
     ListTypeDef list_type = 11;
 
     // Set type.
-    // @Optional
+    //
+    // +Optional
     SetTypeDef set_type = 12;
 
     // Map type.
-    // @Optional
+    //
+    // +Optional
     MapTypeDef map_type = 13;
 
+    // Range type.
+    //
+    // +Optional
+    RangeTypeDef range_type = 14;
+
     // Struct type.
-    // @Optional
-    StructTypeDef struct_type = 14;
+    //
+    // +Optional
+    StructTypeDef struct_type = 15;
 
     // Union type.
-    // @Optional
-    UnionTypeDef union_type = 15;
+    //
+    // +Optional
+    UnionTypeDef union_type = 16;
 
     // Enum type.
-    // @Optional
-    EnumTypeDef enum_type = 16;
+    //
+    // +Optional
+    EnumTypeDef enum_type = 17;
 
-    // Integer range type.
-    // @Optional
-    IntRangeTypeDef int_range_type = 17;
+    // Any type.
+    //
+    // +Optional
+    AnyTypeDef any_type = 18;
 
-    // Timestamp range type.
-    // @Optional
-    TimestampRangeTypeDef timestamp_range_type = 18;
+    // Any type.
+    //
+    // +Optional
+    FuncTypeDef func_type = 19;
   }
 }
 
@@ -210,30 +259,39 @@ message TypeDef {
 message Expr {
   // IntLiteral models an integer number literal.
   message IntLiteral {
-    // @Optional
+    // Value.
+    //
+    // +Optional
     int64 value = 1;
   }
 
   // RealLiteral models a real number literal.
   message RealLiteral {
-    // @Optional
+    // Value.
+    //
+    // +Optional
     double value = 1;
   }
 
   // StringLiteral models a string literal.
   message StringLiteral {
-    // @Optional
+    // Value.
+    //
+    // +Optional
     string value = 1;
   }
 
   // BooleanLiteral models a boolean literal.
   message BooleanLiteral {
-    // @Optional
+    // Value.
+    //
+    // +Optional
     bool value = 1;
   }
 
   // DurationLiteral models a duration literal.
   message DurationLiteral {
+    // Value.
     // Examples of string represenation of duration literals: 
     //  2w    - two weeks
     //  1d    - one day
@@ -242,13 +300,15 @@ message Expr {
     //  17s   - seventeen seconds
     //  10ms  - ten miliseconds
     //  5mcs  - five microseconds
-    //  70ns  - sevenry nanoseconds 
-    // @Required
+    //  70ns  - seventy nanoseconds 
+    //
+    // +Required
     google.protobuf.Duration value = 1;
   }
 
   // TimestampLiteral models a timestamp literal.
   message TimestampLiteral {
+    // Value.
     // A string represenation of timestamp literals uses RFC 3339 syntax for date-time:
     //
     //   date-fullyear   = 4DIGIT
@@ -290,65 +350,101 @@ message Expr {
     //
     //   P.S. Leap year detection: (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0))
     //
-    // @Optional
+    // +Optional
     google.protobuf.Timestamp value = 1;
   }
 
   // EnumLiteral models an enum literal.
   message EnumLiteral {
-    // @Required
+    // Value.
+    //
+    // +Required
     string name = 1;
   }
 
-  // IntRangeExpr models an open or closed contiguous range of integer values.
-  message IntRangeExpr {
+  // RangeExpr models an open or closed contiguous range of values.
+  // +Constraints: $.type.primitive_type in 
+  //     {PRIMITIVE_TYPE_INT, PRIMITIVE_TYPE_REAL, PRIMITIVE_TYPE_DURATION, PRIMITIVE_TYPE_TIMESTAMP}
+  // +Constraints: $lower_bound.type == $upper_bound.type
+  message RangeExpr {
     // Indicates if the range is open (true) or closed (false).
     // A range is called an *open range* when the upper boundary is NOT INCLUDED
     // in the range.
     // A range is called a *closed range* when the upper boundary is INCLUDED
     // in the range.
-    // @Required
+    //
+    // +Required
     bool open_range = 1;
 
     // Lower boundary of the range.
-    // @Required
-    // @Constraints: $.type.primitive_type == PRIMITIVE_TYPE_INT
+    //
+    // +Required
     Expr lower_bound = 2;
 
     // Upper boundary of the range.
-    // @Required
-    // @Constraints: $.type.primitive_type == PRIMITIVE_TYPE_INT
-    Expr upper_bound = 3;
-  }
-
-  // TimestampRangeExpr models an open or closed contiguous range of timestamps.
-  message TimestampRangeExpr {
-    // Indicates if the range is open (true) or closed (false).
-    // A range is called an *open range* when the upper boundary is NOT INCLUDED
-    // in the range.
-    // A range is called a *closed range* when the upper boundary is INCLUDED
-    // in the range.
-    // @Required
-    bool open_range = 1;
-
-    // Lower boundary of the range.
-    // @Required
-    // @Constraints: $.type.primitive_type == PRIMITIVE_TYPE_TIMESTAMP
-    Expr lower_bound = 2;
-
-    // Upper boundary of the range.
-    // @Required
-    // @Constraints: $.type.primitive_type == PRIMITIVE_TYPE_TIMESTAMP
+    // +Required
     Expr upper_bound = 3;
   }
 
   // SetExpr models a set of values of the same type.
   message SetExpr {
+    // Element type.
+    //
+    // +Required
+    TypeDef element_type = 1;
+
     // Elements of the set.
-    // @Optional
-    // @Constraints: $.map($1.type).unique().size() == 1
+    //
+    // +Optional
+    // +Constraints: $.map($1.type).unique().size() == 1
     //              : all elements of a set must have the same type
-    repeated Expr values = 1;
+    repeated Expr elements = 2;
+  }
+
+  // ListExpr models a list of values of the same type.
+  message ListExpr {
+    // Element type.
+    //
+    // +Required
+    TypeDef element_type = 1;
+
+    // Elements of the list.
+    //
+    // +Optional
+    // +Constraints: $.map($1.type).unique().size() <= 1
+    //              : all elements of a list must have the same type
+    repeated Expr elements = 2;
+  }
+
+  // MapExpr models a dictionary.
+  message MapExpr {
+    // Key type.
+    //
+    // +Required
+    TypeDef key_type = 1;
+
+    // Value type.
+    //
+    // +Required
+    TypeDef value_type = 2;
+
+    // Keys.
+    //
+    // +Optional
+    // +Constraints: $.map($1.type).unique().size() <= 1
+    //              : all keys of a map must have the same type
+    // +Constraints: $.size() == $.unique().size()
+    //              : all keys of a map must be unique
+    repeated Expr keys = 3;
+
+    // Values.
+    //
+    // +Optional
+    // +Constraints: $.map($1.type).unique().size() <= 1
+    //              : all values of a map must have the same type
+    // +Constraints: len($) == len($keys)
+    //              : number of keys and values should be the same
+    repeated Expr values = 4;
   }
 
   // PrefixUnaryOpExpr models a prefix unary operation expression: {op} {RHS}.
@@ -377,21 +473,15 @@ message Expr {
   // +==========+=============+========================================+
   // | int      | int         | Inverts all bits in RHS.               |
   // +----------+-------------+----------------------------------------+
-  //
-  // Unwrap Optional Value Operation: {LHS} "!"
-  // +==========+=============+========================================+
-  // | LHS Type | Result Type | Result Description                     |
-  // +==========+=============+========================================+
-  // | T?       | T           | T if LHS is set, otherwise throws an   |
-  // |          |             | exception.                             |
-  // +----------+-------------+----------------------------------------+
   message PrefixUnaryOpExpr {
     // Operator symbol.
-    // @Required
+    //
+    // +Required
     string op = 1;
 
     // Operand.
-    // @Required
+    //
+    // +Required
     Expr rhs = 2;
   }
 
@@ -407,11 +497,13 @@ message Expr {
   // +----------+-------------+----------------------------------------+
   message PostfixUnaryOpExpr {
     // Operator symbol.
-    // @Required
+    //
+    // +Required
     string op = 1;
 
     // Operand.
-    // @Required
+    //
+    // +Required
     Expr lhs = 2;
   }
 
@@ -496,16 +588,13 @@ message Expr {
   // | set<T>   | T        | set<T>      | New set that is created     |
   // |          |          |             | by removing RHS from LHS.   |
   // +----------+----------+-------------+-----------------------------+
-  // | T        | set<T>   | set<T>      | New set that is created     |
-  // |          |          |             | by removing LHS from RHS.   |
-  // +----------+----------+-------------+-----------------------------+
   // | set<T>   | set<T>   | set<T>      | New set that is created     |
-  // |          |          |             | by removingall  RHS elements|
+  // |          |          |             | by removing all RHS elements|
   // |          |          |             | from LHS elements.          |
   // +----------+----------+-------------+-----------------------------+
   // | list<T>  | T        | list<T>     | New list that is created    |
-  // |          |          |             | from LHS by removing first  |
-  // |          |          |             | (if any) RHS element.       |
+  // |          |          |             | from LHS by removing        |
+  // |          |          |             | RHS element.                |
   // +==========+==========+=============+=============================+
   //
   // Division Operation: {LHS} "/" {RHS}
@@ -545,6 +634,8 @@ message Expr {
   // | real     | real     | real        | Product of LHS and RHS.     |
   // +----------+----------+-------------+-----------------------------+
   // | duration | int      | duration    | Product of LHS by RHS.      |  
+  // +----------+----------+-------------+-----------------------------+
+  // | int      | duration | duration    | Product of LHS by RHS.      |  
   // +==========+==========+=============+=============================+
   //
   // Remainder (Modulus) Operation: {LHS} "%" {RHS}
@@ -558,7 +649,7 @@ message Expr {
   // |          |          |             | negative, the result is a   |
   // |          |          |             | negative remainder.         |  
   // +----------+----------+-------------+-----------------------------+
-  // | duration | duration | duration    | Reminder of the division    |
+  // | duration | int      | duration    | Reminder of the division    |
   // |          |          |             | of LHS by RHS.              |  
   // |          |          |             | In cases where the LHS is   |
   // |          |          |             | negative, the result is a   |
@@ -581,6 +672,10 @@ message Expr {
   // |          |          |             | real numbers are exactly the|
   // |          |          |             | same and FALSE otherwise.   |
   // +----------+----------+-------------+-----------------------------+
+  // | bool     | bool     | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | values are exactly the      |
+  // |          |          |             | same and FALSE otherwise.   |
+  // +----------+----------+-------------+-----------------------------+
   // | bytes    | bytes    | bool        | TRUE if the LHS and RHS     |
   // |          |          |             | byte strings are exactly the|
   // |          |          |             | same and FALSE otherwise.   |
@@ -599,6 +694,10 @@ message Expr {
   // +----------+----------+-------------+-----------------------------+
   // | list<T>  | list<T>  | bool        | TRUE if the LHS and RHS     |
   // |          |          |             | lists are exactly the       |
+  // |          |          |             | same and FALSE otherwise.   |
+  // +----------+----------+-------------+-----------------------------+
+  // | map<K,V> | map<K,V> | bool        | TRUE if the LHS and RHS     |
+  // |          |          |             | maps are exactly the        |
   // |          |          |             | same and FALSE otherwise.   |
   // +----------+----------+-------------+-----------------------------+
   // | struct   | struct   | bool        | TRUE if the LHS and RHS     |
@@ -622,6 +721,10 @@ message Expr {
   // |          |          |             | real numbers are exactly the|
   // |          |          |             | same and TRUE otherwise.    |
   // +----------+----------+-------------+-----------------------------+
+  // | bool     | bool     | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | values are exactly the      |
+  // |          |          |             | same and TRUE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
   // | bytes    | bytes    | bool        | FALSE if the LHS and RHS    |
   // |          |          |             | byte strings are exactly the|
   // |          |          |             | same and TRUE otherwise.    |
@@ -640,6 +743,10 @@ message Expr {
   // +----------+----------+-------------+-----------------------------+
   // | list<T>  | list<T>  | bool        | FALSE if the LHS and RHS    |
   // |          |          |             | lists are exactly the       |
+  // |          |          |             | same and TRUE otherwise.    |
+  // +----------+----------+-------------+-----------------------------+
+  // | map<K,V> | map<K,V> | bool        | FALSE if the LHS and RHS    |
+  // |          |          |             | maps are exactly the        |
   // |          |          |             | same and TRUE otherwise.    |
   // +----------+----------+-------------+-----------------------------+
   // | struct   | struct   | bool        | FALSE if the LHS and RHS    |
@@ -685,6 +792,10 @@ message Expr {
   // +----------+----------+-------------+-----------------------------+
   // | set<T>   | set<T>   | bool        | TRUE if the LHS is a subset |
   // |          |          |             | of RHS and FALSE otherwise. |
+  // +----------+----------+-------------+-----------------------------+
+  // | list<T>  | list<T>  | bool        | TRUE if the LHS is          |
+  // |          |          |             | lexicographically less than |
+  // |          |          |             | the RHS and FALSE otherwise.|
   // +==========+==========+=============+=============================+
   //
   // Less-Or-Equal-To Operation: {LHS} "<=" {RHS}
@@ -723,37 +834,46 @@ message Expr {
   // | set<T>   | set<T>   | bool        | TRUE if the LHS is the same |
   // |          |          |             | as RHS or LHS is a subset   |
   // |          |          |             | of RHS, and FALSE otherwise.|
+  // +----------+----------+-------------+-----------------------------+
+  // | list<T>  | list<T>  | bool        | TRUE if the LHS is the same |
+  // |          |          |             | as RHS or lexicographically |
+  // |          |          |             | less than the RHS           |
+  // |          |          |             | and FALSE otherwise.        |
   // +==========+==========+=============+=============================+
   //
   // Greater-Than Operation: {LHS} ">" {RHS}
   // +==========+==========+=============+=============================+
   // | LHS Type | RHS Type | Result Type | Result Description          |
   // +==========+==========+=============+=============================+
-  // | string   | string   | bool        | FALSE if the LHS is         |
-  // |          |          |             | lexicographically less than |
-  // |          |          |             | the RHS and TRUE otherwise. |
+  // | string   | string   | bool        | TRUE if the LHS is          |
+  // |          |          |             | lexicographically greater   | 
+  // |          |          |             | than RHS and TRUE otherwise.|
   // +----------+----------+-------------+-----------------------------+
-  // | int      | int      | bool        | FALSE if the LHS less than  |
-  // |          |          |             | RHS and TRUE otherwise.     |
+  // | int      | int      | bool        | TRUE if the LHS greater     |
+  // |          |          |             | than RHS and TRUE otherwise.|
   // +----------+----------+-------------+-----------------------------+
-  // | int      | real     | bool        | FALSE if the LHS less than  |
-  // |          |          |             | RHS and TRUE otherwise.     |
+  // | int      | real     | bool        | TRUE if the LHS greater     |
+  // |          |          |             | than RHS and TRUE otherwise.|
   // +----------+----------+-------------+-----------------------------+
-  // | real     | real     | bool        | FALSE if the LHS less than  |
-  // |          |          |             | RHS and TRUE otherwise.     |
+  // | real     | real     | bool        | TRUE if the LHS greater     |
+  // |          |          |             | than RHS and TRUE otherwise.|
   // +----------+----------+-------------+-----------------------------+
-  // | real     | int      | bool        | FALSE if the LHS less than  |
-  // |          |          |             | RHS and TRUE otherwise.     |
+  // | real     | int      | bool        | TRUE if the LHS greater     |
+  // |          |          |             | than RHS and TRUE otherwise.|
   // +----------+----------+-------------+-----------------------------+
-  // | duration | duration | bool        | FALSE if the LHS less than  |
-  // |          |          |             | RHS and TRUE otherwise.     |
+  // | duration | duration | bool        | TRUE if the LHS greater     |
+  // |          |          |             | than RHS and TRUE otherwise.|
   // +----------+----------+-------------+-----------------------------+
-  // | timestamp| timestamp| bool        | FALSE if the LHS less than  |
-  // |          |          |             | RHS and TRUE otherwise.     |
+  // | timestamp| timestamp| bool        | TRUE if the LHS greater     |
+  // |          |          |             | than RHS and TRUE otherwise.|
   // +----------+----------+-------------+-----------------------------+
   // | set<T>   | set<T>   | bool        | TRUE if the LHS is a        |
   // |          |          |             | superset of RHS             |
   // |          |          |             | and FALSE otherwise.        |
+  // +----------+----------+-------------+-----------------------------+
+  // | list<T>  | list<T>  | bool        | TRUE if the LHS is          |
+  // |          |          |             | lexicographically greater   | 
+  // |          |          |             | than RHS and TRUE otherwise.|
   // +==========+==========+=============+=============================+
   //
   // Greater-Or-Equal-To Operation: {LHS} ">=" {RHS}
@@ -792,27 +912,26 @@ message Expr {
   // | set<T>   | set<T>   | bool        | TRUE if the LHS is the same |
   // |          |          |             | as RHS or LHS is a superset |
   // |          |          |             | of RHS, and FALSE otherwise.|
+  // +----------+----------+-------------+-----------------------------+
+  // | list<T>  | list<T>  | bool        | TRUE if the LHS is the same |
+  // |          |          |             | as RHS or lexicographically |
+  // |          |          |             | greater than the RHS        |
+  // |          |          |             | and FALSE otherwise.        |
   // +==========+==========+=============+=============================+
   //
   // Nil-Coalescing Operation: {LHS} "??" {RHS}
   // +==========+==========+=============+=============================+
   // | LHS Type | RHS Type | Result Type | Result Description          |
   // +==========+==========+=============+=============================+
-  // | T?       | T        | T?          | LHS if the LHS is not nil,  |
-  // |          |          |             | otherwise RHS converted to  |
-  // |          |          |             | optional value of type T?.  |
+  // | T?       | T        | T           | Unwrapped LHS if the LHS is |
+  // |          |          |             | not nil, otherwise RHS.     |
   // +==========+==========+=============+=============================+
   //
   // Closed Range Generator: {LHS} "..." {RHS}
   // +==========+==========+===============+=============================+
   // | LHS Type | RHS Type | Result Type   | Result Description          |
   // +==========+==========+===============+=============================+
-  // | int      | int      | intRange      | Closed range of integer     |
-  // |          |          |               | values where LHS is the     |
-  // |          |          |               | lower boundary and RHS is   |
-  // |          |          |               | the upper boundary.         |
-  // +----------+----------+---------------+-----------------------------+
-  // | timestamp| timestamp| timestampRange| Closed range of timestamp   |
+  // | T        | T        | range<T>      | Closed range of             |
   // |          |          |               | values where LHS is the     |
   // |          |          |               | lower boundary and RHS is   |
   // |          |          |               | the upper boundary.         |
@@ -822,13 +941,8 @@ message Expr {
   // +==========+==========+===============+=============================+
   // | LHS Type | RHS Type | Result Type   | Result Description          |
   // +==========+==========+===============+=============================+
-  // | int      | int      | intRange      | Open range of integer       |
-  // |          |          |               | values where LHS is the     |
-  // |          |          |               | lower boundary and RHS is   |
-  // |          |          |               | the upper boundary.         |
-  // +----------+----------+---------------+-----------------------------+
-  // | timestamp| timestamp| timestampRange| Closed range of timestamp   |
-  // |          |          |               | values where LHS is the     |
+  // | T        | T        | range<T>      | Open range of values        |
+  // |          |          |               | where LHS is the            |
   // |          |          |               | lower boundary and RHS is   |
   // |          |          |               | the upper boundary.         |
   // +==========+==========+===============+=============================+
@@ -846,17 +960,17 @@ message Expr {
   // | T        | list<T>       | bool        | TRUE if RHS contains        |
   // |          |               |             | LHS, and FALSE otherwise.   |
   // +----------+---------------+-------------+-----------------------------+
+  // | list<T>  | list<T>       | bool        | TRUE if RHS contains        |
+  // |          |               |             | LHS, and FALSE otherwise.   |
+  // +----------+---------------+-------------+-----------------------------+
   // | K        | map<K,V>      | bool        | TRUE if RHS contains key    |
   // |          |               |             | LHS, and FALSE otherwise.   |
   // +----------+---------------+-------------+-----------------------------+
-  // | int      | intRange      | bool        | TRUE if LHS is in the range |
-  // |          |               |             | RHS, and FALSE otherwise.   |
-  // +----------+---------------+-------------+-----------------------------+
-  // | timestamp| timestampRange| bool        | TRUE if LHS is in the range |
+  // | T        | range<T>      | bool        | TRUE if LHS is in the range |
   // |          |               |             | RHS, and FALSE otherwise.   |
   // +==========+===============+=============+=============================+
   //
-  // Operation Logical AND: {LHS} "and" | "&&" {RHS}
+  // Operation Logical AND: {LHS} "&&" {RHS}
   // +==========+==========+=============+=============================+
   // | LHS Type | RHS Type | Result Type | Result Description          |
   // +==========+==========+=============+=============================+
@@ -864,7 +978,7 @@ message Expr {
   // |          |          |             | TRUE, and FALSE otherwise.  |
   // +==========+==========+=============+=============================+
   //
-  // Operation Logical OR: {LHS} "or" | "||" {RHS}
+  // Operation Logical OR: {LHS} "||" {RHS}
   // +==========+==========+=============+=============================+
   // | LHS Type | RHS Type | Result Type | Result Description          |
   // +==========+==========+=============+=============================+
@@ -873,7 +987,7 @@ message Expr {
   // |          |          |             | and FALSE otherwise.        |
   // +==========+==========+=============+=============================+
   //
-  // Operation EXclusive OR: {LHS} "xor" | "^^" {RHS}
+  // Operation EXclusive OR: {LHS} "^^" {RHS}
   // +==========+==========+=============+=============================+
   // | LHS Type | RHS Type | Result Type | Result Description          |
   // +==========+==========+=============+=============================+
@@ -918,7 +1032,7 @@ message Expr {
   // | int      | int      | int         | Bitwise AND of LHS and RHS. |
   // +==========+==========+=============+=============================+
   //
-  // Operation Bitwise ANXOR: {LHS} "^" {RHS}
+  // Operation Bitwise XOR: {LHS} "^" {RHS}
   // +==========+==========+=============+=============================+
   // | LHS Type | RHS Type | Result Type | Result Description          |
   // +==========+==========+=============+=============================+
@@ -926,15 +1040,18 @@ message Expr {
   // +==========+==========+=============+=============================+
   message BinaryOpExpr {
     // Operator symbol.
-    // @Required
+    //
+    // +Required
     string op = 1;
 
     // Left hand side operand.
-    // @Required
+    //
+    // +Required
     Expr lhs = 2;
 
     // Right hand side operand.
-    // @Required
+    //
+    // +Required
     Expr rhs = 3;
   }
 
@@ -949,183 +1066,188 @@ message Expr {
   // +==========+==========+==========+=============+===========================+
   message TernaryOpExpr {
     // Predicate which is used to select the result of the operation.
-    // @Required
+    //
+    // +Required
     Expr predicate = 1;
 
     // Result of the operation if the predicate is evaluated to true.
-    // @Required
+    //
+    // +Required
     Expr true_expr = 2;
 
     // Result of the operation if the predicate is evaluated to false.
-    // @Required
+    //
+    // +Required
     Expr false_expr = 3;
   }
 
-  // VarRefExpr models a reference to a variable value.
-  message VarRefExpr {
-    // Variable name.
-    // @Required
+  // ConstRef models a reference to a constant value.
+  message ConstRefExpr {
+    // Constant name.
+    //
+    // +Required
     string name = 1;
-
-    // Variable type.
-    // @Required
-    TypeDef type = 2;
   }
 
   // FieldRefExpr models a reference to a struct field.
   message FieldRefExpr {
     // Fully qualified name of the struct that contains the field.
     // The first element must be the name of the top level struct in the parsing context.
-    // @Required
+    //
+    // +Required
+    // +Constraints: $.all(NotEmpty)
     repeated string struct_ref = 1;
 
     // Field name.
-    // @Required
+    //
+    // +Required
     string name = 2;
-
-    // Field type.
-    // @Required
-    TypeDef type = 3;
   }
 
   // FuncCallExpr models a function call expression.
   message FuncCallExpr {
     // Function ID.
-    // @Required
+    //
+    // +Required
     string id = 1;
 
     // Function name.
-    // @Required
+    //
+    // +Required
     string name = 2;
 
     // Function arguments.
-    // @Optional
+    //
+    // +Optional
+    // +Constraints: $.all(IsPresent)
     repeated Expr args = 3;
   }
 
   // ParamRefExpr models a reference to parameter of a function or expression.
   message ParamRefExpr {
-    // @Required
+    // Parameter name.
+    //
+    // +Required
     string name = 1;
-  }
-
-  // PrimaryExpr models a primary expression.
-  message PrimaryExpr {
-    // Expression node.
-    // @Required
-    Expr expr = 1;
   }
 
   //// End of nested definitions.
 
   // Type of the expression represented by the node.
-  // @Required
+  //
+  // +Required
   TypeDef type = 1;
 
   // Mutually exclusive fields.
-  // @Required
+  //
+  // +Required
   oneof kind {
-    // @Optional
+    // +Optional
     IntLiteral int_literal = 2;
 
-    // @Optional
-    RealLiteral float_literal = 3;
+    // +Optional
+    RealLiteral real_literal = 3;
 
-    // @Optional
+    // +Optional
     StringLiteral string_literal = 4;
 
-    // @Optional
+    // +Optional
     BooleanLiteral boolean_literal = 5;
 
-    // @Optional
+    // +Optional
     DurationLiteral duration_literal = 6;
 
-    // @Optional
+    // +Optional
     TimestampLiteral timestamp_literal = 7;
 
-    // @Optional
+    // +Optional
     EnumLiteral enum_literal = 8;
 
-    // @Optional
-    IntRangeExpr int_range_expr = 9;
+    // +Optional
+    RangeExpr range_expr = 9;
 
-    // @Optional
-    TimestampRangeExpr timestamp_range_expr = 10;
+    // +Optional
+    PrefixUnaryOpExpr prefix_unary_op_expr = 10;
 
-    // @Optional
-    PrefixUnaryOpExpr prefix_unary_op_expr = 11;
+    // +Optional
+    PostfixUnaryOpExpr postfix_unary_op_expr = 11;
 
-    // @Optional
-    PostfixUnaryOpExpr postfix_unary_op_expr = 12;
+    // +Optional
+    BinaryOpExpr binary_op_expr = 12;
 
-    // @Optional
-    BinaryOpExpr binary_op_expr = 13;
+    // +Optional
+    TernaryOpExpr ternary_op_expr = 13;
 
-    // @Optional
-    TernaryOpExpr ternanry_op_expr = 14;
+    // +Optional
+    SetExpr set_expr = 14;
 
-    // @Optional
-    SetExpr set_expr = 15;
+    // +Optional
+    ListExpr list_expr = 15;
 
-    // @Optional
-    VarRefExpr var_ref = 16;
+    // +Optional
+    MapExpr map_expr = 16;
 
-    // @Optional
-    FieldRefExpr field_ref = 17;
+    // +Optional
+    ConstRefExpr const_ref = 17;
 
-    // @Optional
-    FuncCallExpr func_call = 18;
+    // +Optional
+    FieldRefExpr field_ref = 18;
 
-    // @Optional
-    ParamRefExpr param_ref = 19;
+    // +Optional
+    FuncCallExpr func_call = 19;
 
-    // @Optional
-    PrimaryExpr primary_expr = 20;
+    // +Optional
+    ParamRefExpr param_ref = 20;
   }
 }
 
 // ParamDecl models a function parameter declaration.
+// TODO(vmiksonov): rename it to ParamDef
 message ParamDecl {
   // Name of the parameter.
-  // @Required
+  //
+  // +Required
   string name = 1;
 
   // Type of the parameter.
-  // @Required
+  //
+  // +Required
   TypeDef type = 2;
 
   // Default value of the parameter.
-  // @Optional
+  //
+  // +Optional
   Expr default_value = 3;
 
   // Variable-length arguments (varargs) flag.
   // If it's TRUE, then this parameter matches any number of arguments of 
   // the parameter's type, including none (0).
   // Only the last parameter of a function or a parameterized expression can be varargs.
-  // @Optional
+  //
+  // +Optional
   bool var_args = 4;
 }
 
 // FuncDecl models a function declaration.
 // The following functions must be supported:
 //
-// isZero(int)      -> bool
-// isZero(real)     -> bool
-// isZero(duration) -> bool
+// IsZero(int)      -> bool
+// IsZero(real)     -> bool
+// IsZero(duration) -> bool
 //
-// isPositive(int)      -> bool
-// isPositive(real)     -> bool
-// isPositive(duration) -> bool
+// IsPositive(int)      -> bool
+// IsPositive(real)     -> bool
+// IsPositive(duration) -> bool
 //
-// isNegative(int)      -> bool
-// isNegative(real)     -> bool
-// isNegative(duration) -> bool
+// IsNegative(int)      -> bool
+// IsNegative(real)     -> bool
+// IsNegative(duration) -> bool
 //
-// isPresent(T?) -> bool
+// IsPresent(T?) -> bool
 //
-// isAbsent(T?) -> bool
+// IsAbsent(T?) -> bool
 //
-// isAbsentOrEmpty(list<T>?)  -> bool
+// IsAbsentOrEmpty(list<T>?)  -> bool
 // IsAbsentOrEmpty(map<K,V>?) -> bool
 // IsAbsentOrEmpty(set<T>?)   -> bool
 // IsAbsentOrEmpty(string?)   -> bool
@@ -1135,156 +1257,228 @@ message ParamDecl {
 // IsPresentAndNotEmpty(set<T>?)   -> bool
 // IsPresentAndNotEmpty(string?)   -> bool
 //
-// isEmpty(list<T>)  -> bool
-// isEmpty(map<K,V>) -> bool
-// isEmpty(set<T>)   -> bool
-// isEmpty(string)   -> bool
+// IsEmpty(list<T>)  -> bool
+// IsEmpty(map<K,V>) -> bool
+// IsEmpty(set<T>)   -> bool
+// IsEmpty(string)   -> bool
 //
-// isNotEmpty(list<T>)  -> bool
-// isNotEmpty(map<K,V>) -> bool
-// isNotEmpty(set<T>)   -> bool
-// isNotEmpty(string)   -> bool
+// IsNotEmpty(list<T>)  -> bool
+// IsNotEmpty(map<K,V>) -> bool
+// IsNotEmpty(set<T>)   -> bool
+// IsNotEmpty(string)   -> bool
 //
-// len(list<T>)  -> int
-// len(map<K,V>) -> int
-// len(set<T>)   -> int
-// len(string)   -> int
+// IsBlank(string) -> bool
 //
-// list<T>.count(f(T) -> bool) -> int
-// set<T>.count(f(T) -> bool)  -> int
+// IsNonBlank(string) -> bool
 //
-// list<T>.min -> T
-// set<T>.min  -> T
+// Len(list<T>)  -> int
+// Len(map<K,V>) -> int
+// Len(set<T>)   -> int
+// Len(string)   -> int
 //
-// list<T>.max -> T
-// set<T>.max  -> T
+// list<T>.Count(f(T) -> bool) -> int
+// set<T> .Count(f(T) -> bool) -> int
 //
-// list<T>.filter(f(T) -> bool) -> list<T>
-// map<K,V>.filter(f(K,V) -> bool)  -> map<K,V>
-// set<T>.filter(f(T) -> bool)  -> set<T>
+// list<T>.Min() -> T
+// set<T> .Min() -> T
 //
-// list<T1>.map(f(T1) -> T2) -> list<T2>
-// set<T1>.map(f(T1) -> T2)  -> set<T2>
+// list<T>.Max() -> T
+// set<T> .Max() -> T
 //
-// list<T>.any(f(T) -> bool) -> bool
-// set<T>.any(f(T) -> bool)  -> bool
+// list<T> .Filter((T) -> bool)   -> list<T>
+// map<K,V>.Filter((K,V) -> bool) -> map<K,V>
+// set<T>  .Filter((T) -> bool)   -> set<T>
 //
-// list<T>.all(f(T) -> bool) -> bool
-// set<T>.all(f(T) -> bool)  -> bool
+// list<T1>.Map((T1) -> T2) -> list<T2>
+// set<T1> .Map((T1) -> T2) -> set<T2>
 //
-// list<T>.none(f(T) -> bool) -> bool
-// set<T>.none(f(T) -> bool)  -> bool
+// list<T>.Any((T) -> bool) -> bool
+// set<T> .Any((T) -> bool) -> bool
 //
-// list<T>.find(f(T) -> bool) -> T?
-// set<T>.find(f(T) -> bool)  -> T?
+// list<T>.All((T) -> bool) -> bool
+// set<T> .All((T) -> bool) -> bool
 //
-// list<T>.reduce(R, f(R, T) -> R) -> R
-// set<T>.reduce(R, f(R, T) -> R)  -> R
+// list<T>.None((T) -> bool) -> bool
+// set<T> .None((T) -> bool) -> bool
 //
-// map<K,V>.keys   -> set<K>
-// map<K,V>.values -> list<V>
+// list<T>.Find((T) -> bool) -> T?
+// set<T> .Find((T) -> bool) -> T?
 //
-// list<T>.len  -> int
-// map<K,V>.len -> int
-// set<T>.len   -> int
-// string.len   -> int
+// list<T>.Reduce(R, (R, T) -> R) -> R
+// set<T> .Reduce(R, (R, T) -> R) -> R
 //
-// emptySet() -> set<?>
-// emptyList() -> list<?>
-// emptyMap() -> map<?,?>
+// list<T>.Slice(int)      -> list<T>
+// list<T>.Slice(int, int) -> list<T>
+//
+// map<K,V>.Keys   -> set<K>
+// map<K,V>.Values -> list<V>
+//
+// list<T> .Len -> int
+// map<K,V>.Len -> int
+// set<T>  .Len -> int
+// string  .Len -> int
+//
+// string.Substring(int, int) -> string
+// string.Prefix(int)         -> string
+// string.Suffix(int)         -> string
+// string.ToUpper()           -> string
+// string.ToLower()           -> string
+// string.Trim()              -> string
+// 
 message FuncDecl {
   // Function unique ID.
-  // @Required
+  //
+  // +Required
   string id = 1;
 
   // Function name.
-  // @Required
+  //
+  // +Required
   string name = 2;
 
-  // Parameter declarations.
-  // @Optional
-  // @Constraints: $.all(isPresent)
-  repeated ParamDecl param_decls = 3;
-
   // Type of the returned value.
-  // @Required
-  TypeDef result_type = 4;
+  //
+  // +Required
+  TypeDef.FuncTypeDef func_type = 3;
 }
 
 // PrefixUnaryOpDecl models a prefix unary operation declaration.
 message PrefixUnaryOpDecl {
-  // Operation.
-  // @Required
+  // Operation symbol. 
+  //
+  // +Required
   string op = 1;
 
+  // Operation result type.
+  //
+  // +Required
+  TypeDef result_type = 2;
+
   // Right hand side operand type.
-  // @Required
-  TypeDef rhs_type = 2;
+  //
+  // +Required
+  TypeDef rhs_type = 3;
 }
 
 // PostfixUnaryOpDecl models a postfix unary operation declaration.
 message PostfixUnaryOpDecl {
-  // Operation.
-  // @Required
+  // Operation symbol.
+  //
+  // +Required
   string op = 1;
 
+  // Operation result type.
+  //
+  // +Required
+  TypeDef result_type = 2;
+
   // Left hand side operand type.
-  // @Required
-  TypeDef lhs_type = 2;
+  //
+  // +Required
+  TypeDef lhs_type = 3;
 }
 
 // BinaryOpDecl models a binary operation declaration.
 message BinaryOpDecl {
-  // Operation.
-  // @Required
+  // Operation symbol.
+  //
+  // +Required
   string op = 1;
 
+  // Operation result type.
+  //
+  // +Required
+  TypeDef result_type = 2;
+
   // Left hand side operand type.
-  // @Required
-  TypeDef lhs_type = 2;
+  //
+  // +Required
+  TypeDef lhs_type = 3;
 
   // Right hand side operand type.
-  // @Required
-  TypeDef rhs_type = 3;
+  //
+  // +Required
+  TypeDef rhs_type = 4;
 }
 
-// VarDecl models a variable declaration.
-message VarDecl {
-  // Variable name.
-  // @Required
+// ConstDef models a constant definition.
+message ConstDef {
+  // Constant name.
+  //
+  // +Required
   string name = 1;
 
-  // Variable type.
-  // @Required
-  TypeDef type = 2;
+  // Constant value.
+  //
+  // +Required
+  Expr value = 3;
 }
 
 // FuncDef models a function definition.
 message FuncDef {
+  // Dependencies models what the function needs from the execution context.
+  message Dependencies {
+
+    // Functions called by the body.
+    //
+    // +Optional
+    // +Constraints: $.all(IsPresent)
+    repeated FuncDecl func_decls = 2;
+
+    // Prefix unary operations used by the function.
+    //
+    // +Optional
+    // +Constraints: $.all(IsPresent)
+    repeated PrefixUnaryOpDecl prefix_unary_op_decls = 3;
+
+    // Postfix unary operations used by the function.
+    //
+    // +Optional
+    // +Constraints: $.all(IsPresent)
+    repeated PostfixUnaryOpDecl postfix_unary_op_decls = 4;
+
+    // Binary operations used by the function.
+    //
+    // +Optional
+    // +Constraints: $.all(IsPresent)
+    repeated BinaryOpDecl binary_op_decls = 5;
+  }
+
   // Function declaration.
-  // @Required
+  //
+  // +Required
   FuncDecl decl = 1;
 
   // Function body.
-  // @Required
+  //
+  // +Required
   Expr body = 2;
 
-  // External variables referenced by the function.
-  repeated VarDecl external_var_decls = 3;
+  // Function dependencies on the execution context.
+  //
+  // +Optional
+  Dependencies dependencies = 3;
+}
 
-  // Functions called by the body.
-  // @Optional
-  repeated FuncDecl used_func_decls = 4;
+// Module models a GEL module - a collection of GEL functions.
+//
+// +Constraints: $var_decls.len + $func_defs.len > 0
+//   >> module does not define constants nor functions.
+message Module {
+  // Module name.
+  //
+  // +Required
+  string name = 1;
 
-  // Prefix unary operations used by the function.
-  // @Optional
-  repeated PrefixUnaryOpDecl used_prefix_unary_op_decls = 5;
+  // Constant defined by the module. 
+  //
+  // +Optional
+  // +Constraints: $.all(IsPresent)
+  repeated ConstDef const_defs = 2;
 
-  // Postfix unary operations used by the function.
-  // @Optional
-  repeated PostfixUnaryOpDecl used_postfix_unary_op_decls = 6;
-
-  // Binary operations used by the function.
-  // @Optional
-  repeated BinaryOpDecl used_binary_op_decls = 7;
+  // Functions defined by the module.
+  //
+  // +Optional
+  // +Constraints: $.all(IsPresent)
+  repeated FuncDef func_defs = 3;
 }
