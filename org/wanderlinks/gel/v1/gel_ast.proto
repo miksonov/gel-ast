@@ -1460,23 +1460,23 @@ message FuncDef {
   Dependencies dependencies = 3;
 }
 
-// Module models a GEL module - a collection of GEL functions.
+// Package models a GEL package - a set of GEL definitions.
 //
 // +Constraints: $var_decls.len + $func_defs.len > 0
-//   >> module does not define constants nor functions.
-message Module {
-  // Module name.
+//   >> package does not define constants nor functions.
+message Package {
+  // Package name.
   //
   // +Required
   string name = 1;
 
-  // Constant defined by the module. 
+  // Constants defined by the package. 
   //
   // +Optional
   // +Constraints: $.all(IsPresent)
   repeated ConstDef const_defs = 2;
 
-  // Functions defined by the module.
+  // Functions defined by the package.
   //
   // +Optional
   // +Constraints: $.all(IsPresent)
