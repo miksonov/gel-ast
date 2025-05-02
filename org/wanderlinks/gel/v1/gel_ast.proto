@@ -1131,6 +1131,15 @@ message Expr {
     string name = 1;
   }
 
+  // ForwardRefExpr models a reference to value (enum, param, const, field), which could not be resolved
+  // immediately during parsing and requires a second pass.
+  message ForwardRefExpr {
+    // Name of an unresolved value.
+    //
+    // +Required
+    string name = 1;
+  }
+
   //// End of nested definitions.
 
   // Type of the expression represented by the node.
@@ -1198,6 +1207,9 @@ message Expr {
 
     // +Optional
     ParamRefExpr param_ref = 20;
+
+    // +Optional
+    ForwardRefExpr forward_ref = 21;
   }
 }
 
