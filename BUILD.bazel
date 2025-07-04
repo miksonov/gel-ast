@@ -7,13 +7,13 @@ licenses(["notice"])
 exports_files(["LICENSE"])
 
 filegroup(
-    name = 'proto',
+    name = 'protos',
     srcs = glob(['org/wanderlinks/gel/**'])
 )
 
 proto_library(
     name = "gel_proto",
-    srcs = [":proto"],
+    srcs = [":protos"],
     deps = [
         "@com_google_protobuf//:any_proto",
         "@com_google_protobuf//:duration_proto",
